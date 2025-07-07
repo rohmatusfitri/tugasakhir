@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sistem Keamanan BTS</title>
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+  <style>
+    * {
+      box-sizing: border-box;
+      font-family: 'Roboto', sans-serif;
+    }
+    body {
+      margin: 0;
+      padding: 0;
+      background: linear-gradient(to bottom right, #e3f2fd, #bbdefb);
+      color: #333;
+    }
+    header {
+      background-color: #0d47a1;
+      color: white;
+      padding: 20px;
+      text-align: center;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+    }
+    h1 {
+      margin: 0;
+      font-size: 2rem;
+    }
+    main {
+      padding: 20px;
+      max-width: 1000px;
+      margin: auto;
+    }
+    .notification {
+      background: #ffffff;
+      padding: 15px;
+      margin: 15px 0;
+      border-left: 5px solid #1565c0;
+      border-radius: 5px;
+      box-shadow: 0 1px 5px rgba(0,0,0,0.1);
+    }
+    .notification time {
+      display: block;
+      font-size: 0.8rem;
+      color: #888;
+      margin-top: 5px;
+    }
+    #image-section img {
+      max-width: 100%;
+      height: auto;
+      border: 2px solid #ccc;
+      border-radius: 5px;
+      margin-top: 10px;
+    }
+    .btn-group {
+      margin-top: 20px;
+      display: flex;
+      gap: 15px;
+      flex-wrap: wrap;
+    }
+    button {
+      padding: 10px 20px;
+      background-color: #1565c0;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      font-weight: bold;
+      transition: background-color 0.3s;
+    }
+    button:hover {
+      background-color: #0d47a1;
+    }
+    footer {
+      background-color: #f2f6fc;
+      text-align: center;
+      font-size: 0.9rem;
+      padding: 15px;
+      margin-top: 40px;
+      color: #666;
+    }
+    #login-page, #dashboard-page {
+      display: none;
+    }
+    .visible {
+      display: block !important;
+    }
+    input[type="text"], input[type="password"] {
+      padding: 10px;
+      width: 100%;
+      margin-bottom: 10px;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+    }
+    .login-container {
+      max-width: 400px;
+      margin: 100px auto;
+      padding: 20px;
+      background: white;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+      border-radius: 10px;
+    }
+  </style>
+</head>
+<body>
+  <div id="login-page" class="visible">
+    <div class="login-container">
+      <h2>Login Sistem Keamanan</h2>
+      <input type="text" id="username" placeholder="Username" />
+      <input type="password" id="password" placeholder="Password" />
+      <button onclick="login()">Masuk</button>
+      <p id="login-message" style="color:red;"></p>
+    </div>
+  </div>
+
+  <div id="dashboard-page">
+    <header>
+      <h1>🔒 Sistem Keamanan Perangkat BTS Berbasis IoT</h1>
+      <p>Monitoring Otomatis | Gambar & Notifikasi Realtime</p>
+    </header>
+
+    <main>
+      <section id="notifications">
+        <h3>🔔 Notifikasi:</h3>
+        <div class="notifications" id="notif-container">Belum ada notifikasi.</div>
+      </section>
+
+      <section id="image-section">
+        <h3>📸 Gambar Tangkapan Kamera:</h3>
+        <img id="captured-image" src="" alt="Belum ada gambar tersedia" />
+      </section>
+
+      <div class="btn-group">
+        <button onclick="sendSystemOnCommand()">✅ Sistem ON</button>
+        <button onclick="sendCaptureCommand()">🔄 Capture Ulang</button>
+        <button onclick="sendSireneCommand()">🚨 Sirene Nyala Ulang</button>
+        <button onclick="sendSystemOffCommand()">⛔ Sistem OFF</button>
+        <button onclick="loadPreviousImages()">🗂 Lihat Gambar Sebelumnya</button>
+      </div>
+    </main>
+
+    <footer>
+      Dikembangkan oleh PT. Infrastruktur Telekomunikasi Indonesia
+    </footer>
+  </div>
+
+  <script>
+    const ws = new WebSocket('ws://localhost:9000'); // WebSocket untuk komunikasi real-time dari server (MQTT + Socket)
+
+    function getCurrentTime() {
+      return new Date().toLocaleString('id-ID');
+    }
+
+    ws.onmessage = function(event) {
+      const data = JSON.parse(event.data);
+      const notifArea = document.getElementById('notif-container');
+      const image = document.getElementById('captured-image');
+
+      if (notifArea.innerHTML.includes('Belum ada notifikasi.')) {
+        notifArea.innerHTML = ''; // Hapus pesan default jika ada notifikasi baru
+      }
+
+      if (data.type === 'door_open') {
+        notifArea.innerHTML += <div class='notification'>🚪 Notifikasi: ${data.message}<time>${getCurrentTime()}</time></div>;
+      }
+
+      if (data.type === 'image') {
+        image.src = data.url;
+        notifArea.innerHTML += <div class='notification'>📷 Gambar diterima.<time>${getCurrentTime()}</time></div>;
+        fetch('/save-image', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ url: data.url, time: getCurrentTime() })
+        });
+      }
+
+      if (data.type === 'sirene') {
+        notifArea.innerHTML += <div class='notification'>🚨 ${data.message}<time>${getCurrentTime()}</time></div>;
+      }
+    };
+
+    function sendCaptureCommand() {
+      ws.send(JSON.stringify({ action: 'capture' }));
+      document.getElementById('notif-container').innerHTML += <div class='notification'>📤 Perintah: Capture Ulang<time>${getCurrentTime()}</time></div>;
+    }
+
+    function sendSireneCommand() {
+      ws.send(JSON.stringify({ action: 'sirene' }));
+      document.getElementById('notif-container').innerHTML += <div class='notification'>📤 Perintah: Sirene Nyala Ulang<time>${getCurrentTime()}</time></div>;
+    }
+
+    function sendSystemOnCommand() {
+      ws.send(JSON.stringify({ action: 'system_on' }));
+      document.getElementById('notif-container').innerHTML += <div class='notification'>✅ Sistem dinyalakan<time>${getCurrentTime()}</time></div>;
+    }
+
+    function sendSystemOffCommand() {
+      ws.send(JSON.stringify({ action: 'system_off' }));
+      document.getElementById('notif-container').innerHTML += <div class='notification'>⛔ Sistem dimatikan<time>${getCurrentTime()}</time></div>;
+    }
+
+    function loadPreviousImages() {
+      fetch('/previous-images')
+        .then(res => res.json())
+        .then(data => {
+          data.images.forEach(img => {
+            document.getElementById('notif-container').innerHTML += <div class='notification'>🖼 Gambar Sebelumnya:<br><img src='${img}' style='max-width:200px; margin-top:5px;'><time>${getCurrentTime()}</time></div>;
+          });
+        });
+    }
+
+    function login() {
+      const username = document.getElementById('username').value;
+      const password = document.getElementById('password').value;
+      if (username === 'semhassinchan' && password === 'abc123') {
+        document.getElementById('login-page').classList.remove('visible');
+        document.getElementById('dashboard-page').classList.add('visible');
+      } else {
+        document.getElementById('login-message').innerText = 'Username atau password salah';
+      }
+    }
+  </script>
+</body>
+</html>

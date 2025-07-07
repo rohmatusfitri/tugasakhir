@@ -1,0 +1,765 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sinchan Security Gallery</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        :root {
+            --primary-color: #2c3e50;
+            --secondary-color: #3498db;
+            --accent-color: #e74c3c;
+            --light-color: #ecf0f1;
+            --dark-color: #34495e;
+            --success-color: #27ae60;
+            --warning-color: #f39c12;
+            --sidebar-width: 280px;
+            --header-height: 70px;
+            --transition: all 0.3s ease;
+        }
+        
+        body {
+            background-color: #f5f7fa;
+            color: #333;
+            overflow-x: hidden;
+        }
+        
+        /* Header Styles */
+        header {
+            background: linear-gradient(135deg, var(--primary-color), var(--dark-color));
+            color: white;
+            height: var(--header-height);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 2rem;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 100;
+        }
+        
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        
+        .logo-icon {
+            font-size: 1.8rem;
+            color: var(--secondary-color);
+        }
+        
+        .logo-text {
+            font-size: 1.4rem;
+            font-weight: 700;
+        }
+        
+        .logo-text span {
+            color: var(--secondary-color);
+        }
+        
+        /* Layout */
+        .container {
+            display: flex;
+            min-height: 100vh;
+            padding-top: var(--header-height);
+        }
+        
+        /* Sidebar Styles */
+        .sidebar {
+            width: var(--sidebar-width);
+            background: linear-gradient(180deg, var(--primary-color), var(--dark-color));
+            color: var(--light-color);
+            padding: 1.5rem 0;
+            height: calc(100vh - var(--header-height));
+            position: fixed;
+            overflow-y: auto;
+            transition: var(--transition);
+            z-index: 90;
+        }
+        
+        .sidebar-header {
+            padding: 0 1.5rem 1.5rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .sidebar-title {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 1.2rem;
+            font-weight: 600;
+        }
+        
+        .folders {
+            padding: 1rem 0;
+        }
+        
+        .folder {
+            padding: 0.8rem 1.5rem;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: var(--transition);
+            border-left: 3px solid transparent;
+        }
+        
+        .folder:hover {
+            background-color: rgba(255, 255, 255, 0.05);
+            border-left: 3px solid var(--secondary-color);
+        }
+        
+        .folder.active {
+            background-color: rgba(255, 255, 255, 0.1);
+            border-left: 3px solid var(--secondary-color);
+        }
+        
+        .folder-name {
+            font-size: 0.95rem;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 180px;
+        }
+        
+        .folder-time {
+            font-size: 0.75rem;
+            opacity: 0.7;
+            margin-top: 3px;
+        }
+        
+        .folder-delete {
+            color: var(--accent-color);
+            background: none;
+            border: none;
+            cursor: pointer;
+            opacity: 0;
+            transition: var(--transition);
+            padding: 5px;
+            border-radius: 4px;
+        }
+        
+        .folder:hover .folder-delete {
+            opacity: 1;
+        }
+        
+        .folder-delete:hover {
+            background-color: rgba(231, 76, 60, 0.2);
+        }
+        
+        /* Main Content Styles */
+        .main-content {
+            flex: 1;
+            margin-left: var(--sidebar-width);
+            padding: 2rem;
+            transition: var(--transition);
+        }
+        
+        .content-header {
+            margin-bottom: 1.5rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .folder-info {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        
+        .folder-icon {
+            font-size: 2rem;
+            color: var(--secondary-color);
+        }
+        
+        .folder-details h2 {
+            font-size: 1.5rem;
+            margin-bottom: 5px;
+            color: var(--dark-color);
+        }
+        
+        .folder-details p {
+            color: #777;
+            font-size: 0.9rem;
+        }
+        
+        .delete-folder-btn {
+            background-color: var(--accent-color);
+            color: white;
+            border: none;
+            padding: 0.7rem 1.2rem;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: var(--transition);
+        }
+        
+        .delete-folder-btn:hover {
+            background-color: #c0392b;
+            transform: translateY(-2px);
+        }
+        
+        /* Gallery Grid */
+        .gallery-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            gap: 20px;
+        }
+        
+        .photo-card {
+            background-color: white;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+            transition: var(--transition);
+            position: relative;
+        }
+        
+        .photo-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
+        }
+        
+        .photo-image {
+            width: 100%;
+            height: 200px;
+            object-fit: cover;
+            display: block;
+        }
+        
+        .photo-info {
+            padding: 15px;
+        }
+        
+        .photo-time {
+            font-size: 0.85rem;
+            color: #777;
+            margin-top: 5px;
+        }
+        
+        .photo-actions {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            display: flex;
+            gap: 8px;
+            opacity: 0;
+            transition: var(--transition);
+        }
+        
+        .photo-card:hover .photo-actions {
+            opacity: 1;
+        }
+        
+        .action-btn {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: none;
+            cursor: pointer;
+            background-color: white;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+            transition: var(--transition);
+        }
+        
+        .delete-btn {
+            color: var(--accent-color);
+        }
+        
+        .download-btn {
+            color: var(--secondary-color);
+        }
+        
+        .action-btn:hover {
+            transform: scale(1.1);
+        }
+        
+        /* Empty State */
+        .empty-state {
+            text-align: center;
+            padding: 3rem;
+            color: #777;
+        }
+        
+        .empty-icon {
+            font-size: 5rem;
+            color: #ddd;
+            margin-bottom: 1.5rem;
+        }
+        
+        .empty-text {
+            font-size: 1.2rem;
+            margin-bottom: 1rem;
+        }
+        
+        .simulate-btn {
+            background-color: var(--secondary-color);
+            color: white;
+            border: none;
+            padding: 0.8rem 1.5rem;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            transition: var(--transition);
+        }
+        
+        .simulate-btn:hover {
+            background-color: #2980b9;
+            transform: translateY(-2px);
+        }
+        
+        /* Responsive */
+        @media (max-width: 992px) {
+            .sidebar {
+                transform: translateX(-100%);
+            }
+            
+            .sidebar.active {
+                transform: translateX(0);
+            }
+            
+            .main-content {
+                margin-left: 0;
+            }
+            
+            .menu-toggle {
+                display: block;
+            }
+        }
+        
+        .menu-toggle {
+            display: none;
+            background: none;
+            border: none;
+            color: white;
+            font-size: 1.5rem;
+            cursor: pointer;
+        }
+        
+        /* Animation */
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        
+        .fade-in {
+            animation: fadeIn 0.5s ease-in;
+        }
+        
+        /* Notification */
+        .notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 15px 25px;
+            border-radius: 5px;
+            color: white;
+            font-weight: 500;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            z-index: 1000;
+            transform: translateX(110%);
+            transition: transform 0.3s ease;
+        }
+        
+        .notification.show {
+            transform: translateX(0);
+        }
+        
+        .notification.success {
+            background-color: var(--success-color);
+        }
+        
+        .notification.error {
+            background-color: var(--accent-color);
+        }
+        
+        .notification.info {
+            background-color: var(--secondary-color);
+        }
+    </style>
+</head>
+<body>
+    <!-- Notification System -->
+    <div class="notification">
+        <span class="notification-message"></span>
+    </div>
+    
+    <!-- Header -->
+    <header>
+        <div class="logo">
+            <i class="fas fa-shield-alt logo-icon"></i>
+            <div class="logo-text">SINCHAN <span>SECURITY</span></div>
+        </div>
+        <button class="menu-toggle">
+            <i class="fas fa-bars"></i>
+        </button>
+    </header>
+    
+    <div class="container">
+        <!-- Sidebar -->
+        <div class="sidebar">
+            <div class="sidebar-header">
+                <div class="sidebar-title">
+                    <i class="fas fa-folder-open"></i>
+                    <h3>Motion Detection Folders</h3>
+                </div>
+            </div>
+            
+            <div class="folders" id="foldersContainer">
+                <!-- Folders will be dynamically added here -->
+            </div>
+        </div>
+        
+        <!-- Main Content -->
+        <div class="main-content">
+            <div class="content-header">
+                <div class="folder-info">
+                    <i class="fas fa-folder folder-icon"></i>
+                    <div class="folder-details">
+                        <h2 id="currentFolderName">Select a folder</h2>
+                        <p id="currentFolderTime">No folder selected</p>
+                    </div>
+                </div>
+                <button class="delete-folder-btn" id="deleteFolderBtn" disabled>
+                    <i class="fas fa-trash"></i>
+                    Delete Folder
+                </button>
+            </div>
+            
+            <div class="gallery-container">
+                <div class="gallery-grid" id="galleryGrid">
+                    <!-- Photos will be dynamically added here -->
+                </div>
+            </div>
+            
+            <!-- Empty State -->
+            <div class="empty-state" id="emptyState">
+                <i class="fas fa-camera empty-icon"></i>
+                <div class="empty-text">No motion detected yet</div>
+                <p>Your security system will automatically capture photos when motion is detected.</p>
+                <button class="simulate-btn" id="simulateBtn">
+                    <i class="fas fa-play-circle"></i>
+                    Simulate Motion Detection
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Sample data structure to store folders and photos
+        let folders = [];
+        let currentFolderId = null;
+        
+        // DOM Elements
+        const foldersContainer = document.getElementById('foldersContainer');
+        const galleryGrid = document.getElementById('galleryGrid');
+        const currentFolderName = document.getElementById('currentFolderName');
+        const currentFolderTime = document.getElementById('currentFolderTime');
+        const deleteFolderBtn = document.getElementById('deleteFolderBtn');
+        const emptyState = document.getElementById('emptyState');
+        const simulateBtn = document.getElementById('simulateBtn');
+        const notification = document.querySelector('.notification');
+        const notificationMessage = document.querySelector('.notification-message');
+        
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            loadFolders();
+            setupEventListeners();
+        });
+        
+        // Load folders from local storage or initialize
+        function loadFolders() {
+            const savedFolders = localStorage.getItem('motionFolders');
+            if (savedFolders) {
+                folders = JSON.parse(savedFolders);
+                renderFolders();
+                if (folders.length > 0) {
+                    emptyState.style.display = 'none';
+                    selectFolder(folders[0].id);
+                }
+            } else {
+                emptyState.style.display = 'block';
+            }
+        }
+        
+        // Save folders to local storage
+        function saveFolders() {
+            localStorage.setItem('motionFolders', JSON.stringify(folders));
+        }
+        
+        // Set up event listeners
+        function setupEventListeners() {
+            // Simulate motion detection
+            simulateBtn.addEventListener('click', simulateMotionDetection);
+            
+            // Delete folder button
+            deleteFolderBtn.addEventListener('click', deleteCurrentFolder);
+            
+            // Menu toggle for mobile
+            document.querySelector('.menu-toggle').addEventListener('click', () => {
+                document.querySelector('.sidebar').classList.toggle('active');
+            });
+        }
+        
+        // Simulate motion detection (for demo)
+        function simulateMotionDetection() {
+            // Create a new folder for this detection
+            const now = new Date();
+            const folderId = Date.now().toString();
+            const folderName = `Door Open - ${formatDateTime(now)}`;
+            
+            const newFolder = {
+                id: folderId,
+                name: folderName,
+                timestamp: now.toISOString(),
+                photos: []
+            };
+            
+            // Add the new folder to the beginning of the list
+            folders.unshift(newFolder);
+            
+            // Add 5 photos to the folder
+            for (let i = 0; i < 5; i++) {
+                setTimeout(() => {
+                    const photoTime = new Date(now.getTime() + i * 3000);
+                    newFolder.photos.push({
+                        id: `photo-${Date.now()}-${i}`,
+                        timestamp: photoTime.toISOString()
+                    });
+                    
+                    // If this is the current folder, render the photos
+                    if (currentFolderId === folderId) {
+                        renderPhotos();
+                    }
+                    
+                    // Save after adding each photo
+                    saveFolders();
+                }, i * 100);
+            }
+            
+            // Render folders and select the new one
+            renderFolders();
+            selectFolder(folderId);
+            emptyState.style.display = 'none';
+            
+            // Show notification
+            showNotification(`Motion detected! 5 photos captured.`, 'success');
+            
+            // Save folders
+            saveFolders();
+        }
+        
+        // Render folders in sidebar
+        function renderFolders() {
+            foldersContainer.innerHTML = '';
+            
+            folders.forEach(folder => {
+                const folderElement = document.createElement('div');
+                folderElement.className = 'folder';
+                if (folder.id === currentFolderId) {
+                    folderElement.classList.add('active');
+                }
+                
+                folderElement.innerHTML = `
+                    <div>
+                        <div class="folder-name">${folder.name}</div>
+                        <div class="folder-time">${formatTime(new Date(folder.timestamp))}</div>
+                    </div>
+                    <button class="folder-delete" data-id="${folder.id}">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                `;
+                
+                folderElement.addEventListener('click', () => {
+                    selectFolder(folder.id);
+                });
+                
+                // Add delete event listener
+                const deleteBtn = folderElement.querySelector('.folder-delete');
+                deleteBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    deleteFolder(folder.id);
+                });
+                
+                foldersContainer.appendChild(folderElement);
+            });
+        }
+        
+        // Select a folder to view
+        function selectFolder(folderId) {
+            currentFolderId = folderId;
+            const folder = folders.find(f => f.id === folderId);
+            
+            if (folder) {
+                currentFolderName.textContent = folder.name;
+                currentFolderTime.textContent = `Detected at: ${formatDateTime(new Date(folder.timestamp))}`;
+                deleteFolderBtn.disabled = false;
+                
+                // Highlight selected folder
+                document.querySelectorAll('.folder').forEach(el => {
+                    el.classList.remove('active');
+                });
+                document.querySelector(`.folder[data-id="${folderId}"]`)?.classList.add('active');
+                
+                // Render photos
+                renderPhotos();
+            }
+        }
+        
+        // Render photos for current folder
+        function renderPhotos() {
+            galleryGrid.innerHTML = '';
+            const folder = folders.find(f => f.id === currentFolderId);
+            
+            if (folder && folder.photos.length > 0) {
+                folder.photos.forEach(photo => {
+                    const photoCard = document.createElement('div');
+                    photoCard.className = 'photo-card fade-in';
+                    
+                    // Generate random image from placeholder service
+                    const imgUrl = `https://picsum.photos/seed/${photo.id}/400/300`;
+                    
+                    photoCard.innerHTML = `
+                        <img src="${imgUrl}" alt="Captured photo" class="photo-image">
+                        <div class="photo-info">
+                            <div class="photo-time">${formatTime(new Date(photo.timestamp))}</div>
+                        </div>
+                        <div class="photo-actions">
+                            <button class="action-btn download-btn" data-id="${photo.id}">
+                                <i class="fas fa-download"></i>
+                            </button>
+                            <button class="action-btn delete-btn" data-id="${photo.id}">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>
+                    `;
+                    
+                    // Add event listeners to action buttons
+                    const downloadBtn = photoCard.querySelector('.download-btn');
+                    downloadBtn.addEventListener('click', () => {
+                        downloadPhoto(imgUrl);
+                    });
+                    
+                    const deleteBtn = photoCard.querySelector('.delete-btn');
+                    deleteBtn.addEventListener('click', () => {
+                        deletePhoto(photo.id);
+                    });
+                    
+                    galleryGrid.appendChild(photoCard);
+                });
+            }
+        }
+        
+        // Delete a photo
+        function deletePhoto(photoId) {
+            const folder = folders.find(f => f.id === currentFolderId);
+            if (folder) {
+                folder.photos = folder.photos.filter(p => p.id !== photoId);
+                renderPhotos();
+                saveFolders();
+                showNotification('Photo deleted successfully', 'success');
+                
+                // If this was the last photo, show empty state
+                if (folder.photos.length === 0) {
+                    deleteFolder(currentFolderId);
+                }
+            }
+        }
+        
+        // Delete a folder
+        function deleteFolder(folderId) {
+            if (confirm('Are you sure you want to delete this folder and all its photos?')) {
+                folders = folders.filter(f => f.id !== folderId);
+                saveFolders();
+                renderFolders();
+                
+                if (folders.length > 0) {
+                    selectFolder(folders[0].id);
+                } else {
+                    // No folders left
+                    currentFolderId = null;
+                    currentFolderName.textContent = 'Select a folder';
+                    currentFolderTime.textContent = 'No folder selected';
+                    deleteFolderBtn.disabled = true;
+                    galleryGrid.innerHTML = '';
+                    emptyState.style.display = 'block';
+                }
+                
+                showNotification('Folder deleted successfully', 'success');
+            }
+        }
+        
+        // Delete the current folder
+        function deleteCurrentFolder() {
+            if (currentFolderId) {
+                deleteFolder(currentFolderId);
+            }
+        }
+        
+        // Download a photo
+        function downloadPhoto(url) {
+            // In a real app, this would download the actual captured image
+            // For demo, we'll just simulate it
+            showNotification('Photo download started...', 'info');
+            
+            // Simulate download
+            setTimeout(() => {
+                showNotification('Photo downloaded successfully', 'success');
+            }, 1000);
+        }
+        
+        // Format date and time
+        function formatDateTime(date) {
+            return date.toLocaleString('id-ID', {
+                day: '2-digit',
+                month: 'short',
+                year: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit'
+            });
+        }
+        
+        // Format time
+        function formatTime(date) {
+            return date.toLocaleTimeString('id-ID', {
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit'
+            });
+        }
+        
+        // Show notification
+        function showNotification(message, type) {
+            notificationMessage.textContent = message;
+            notification.className = `notification ${type} show`;
+            
+            setTimeout(() => {
+                notification.classList.remove('show');
+            }, 3000);
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,862 @@
+<!DOCTYPE html>
+<html lang="en">
+    <div id="dashboard-page" class="main-container">
+        <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sinchan Security System</title>
+    
+    <!-- Bootstrap CSS -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Font Awesome -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <!-- MQTT Client -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/paho-mqtt/1.0.1/mqttws31.min.js"></script>
+    
+    <style>
+        :root {
+            --primary-color: #2563eb;
+            --secondary-color: #64748b;
+            --success-color: #16a34a;
+            --danger-color: #dc2626;
+            --warning-color: #d97706;
+            --info-color: #0891b2;
+            --dark-color: #1e293b;
+            --light-color: #f8fafc;
+        }
+
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        .navbar-brand {
+            font-weight: 700;
+            font-size: 1.5rem;
+            background: linear-gradient(135deg, #fff 0%, #f8f9fa 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .main-container {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            margin: 20px;
+            padding: 30px;
+            min-height: calc(100vh - 40px);
+        }
+
+        .status-card {
+            transition: all 0.3s ease;
+            border-radius: 15px;
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+            border: none;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .status-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, #667eea, #764ba2);
+        }
+
+        .status-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.15);
+        }
+
+        .sensor-active {
+            background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%);
+            color: #065f46;
+        }
+
+        .sensor-inactive {
+            background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);
+            color: #7f1d1d;
+        }
+
+        .sensor-motion {
+            background: linear-gradient(135deg, #dbeafe 0%, #93c5fd 100%);
+            color: #1e3a8a;
+            animation: pulse 1s infinite;
+        }
+
+        .sirene-active {
+            background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+            color: #92400e;
+        }
+
+        .sirene-inactive {
+            background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%);
+            color: #475569;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.8; transform: scale(1.02); }
+        }
+
+        .connection-status {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 12px 16px;
+            border-radius: 25px;
+            font-size: 0.875rem;
+            font-weight: 600;
+            z-index: 1000;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+        }
+
+        .connection-online {
+            background: linear-gradient(135deg, #16a34a, #15803d);
+            color: white;
+        }
+
+        .connection-offline {
+            background: linear-gradient(135deg, #dc2626, #b91c1c);
+            color: white;
+        }
+
+        .control-button {
+            transition: all 0.3s ease;
+            border-radius: 12px;
+            font-weight: 600;
+            padding: 12px 24px;
+            border: none;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .control-button::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+            transition: left 0.5s;
+        }
+
+        .control-button:hover::before {
+            left: 100%;
+        }
+
+        .control-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
+        }
+
+        .calendar-has-activity {
+            background: linear-gradient(135deg, #3b82f6, #2563eb) !important;
+            color: white !important;
+            border-radius: 50%;
+            cursor: pointer;
+            animation: glow 2s infinite;
+        }
+
+        @keyframes glow {
+            0%, 100% { box-shadow: 0 0 5px rgba(59, 130, 246, 0.5); }
+            50% { box-shadow: 0 0 15px rgba(59, 130, 246, 0.8); }
+        }
+
+        .icon-wrapper {
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 50%;
+            width: 60px;
+            height: 60px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 15px;
+        }
+
+        .dashboard-title {
+            background: linear-gradient(135deg, #1e293b, #475569);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            font-weight: 800;
+        }
+
+        .config-panel {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 20px;
+            backdrop-filter: blur(5px);
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            border: none;
+        }
+
+        .btn-success {
+            background: linear-gradient(135deg, #16a34a, #15803d);
+            border: none;
+        }
+
+        .btn-warning {
+            background: linear-gradient(135deg, #d97706, #b45309);
+            border: none;
+        }
+
+        .btn-danger {
+            background: linear-gradient(135deg, #dc2626, #b91c1c);
+            border: none;
+        }
+
+        .btn-secondary {
+            background: linear-gradient(135deg, #64748b, #475569);
+            border: none;
+        }
+    </style>
+</head>
+<body>
+    <!-- Connection Status -->
+    <div id="connectionStatus" class="connection-status connection-offline">
+        <i class="fas fa-circle me-2"></i>
+        <span>Offline</span>
+    </div>
+
+    <div class="main-container">
+        <!-- Header -->
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <div>
+                <h1 class="dashboard-title mb-0">
+                    <i class="fas fa-shield-alt me-2"></i>
+                    Sinchan Security System
+                </h1>
+                <p class="text-muted mb-0">Real-time monitoring dashboard</p>
+            </div>
+            <div class="text-end">
+                <div id="lastUpdate" class="text-muted small">
+                    Last update: Never
+                </div>
+                <button class="btn btn-outline-secondary btn-sm mt-1" onclick="logout()">
+                    <i class="fas fa-sign-out-alt me-1"></i>
+                    Logout
+                </button>
+            </div>
+        </div>
+        
+        <div id="alertArea" class="mb-4"></div>
+        <!-- MQTT Configuration Panel -->
+        <div class="config-panel">
+            <h5 class="mb-3">
+                <i class="fas fa-cog me-2"></i>
+                MQTT Configuration
+            </h5>
+            <div class="row">
+                <div class="col-md-3">
+                    <input type="text" id="mqttHost" class="form-control form-control-sm" placeholder="MQTT Host" value="broker.hivemq.com">
+                </div>
+                <div class="col-md-2">
+                    <input type="number" id="mqttPort" class="form-control form-control-sm" placeholder="Port" value="8000">
+                </div>
+                <div class="col-md-3">
+                    <input type="text" id="mqttUsername" class="form-control form-control-sm" placeholder="Username (optional)">
+                </div>
+                <div class="col-md-2">
+                    <input type="password" id="mqttPassword" class="form-control form-control-sm" placeholder="Password (optional)">
+                </div>
+                <div class="col-md-2">
+                    <button id="btnConnect" class="btn btn-primary btn-sm w-100" onclick="connectMQTT()">
+                        <i class="fas fa-plug me-1"></i>
+                        Connect
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Status Cards -->
+        <div class="row mb-4">
+            <div class="col-md-6 mb-3">
+                <div id="sensorStatus" class="status-card sensor-inactive p-4 h-100">
+                    <div class="d-flex align-items-center">
+                        <div class="icon-wrapper">
+                            <i class="fas fa-radar-chart fa-2x" id="sensorIcon"></i>
+                        </div>
+                        <div>
+                            <h4 class="mb-1" id="sensorText">INACTIVE</h4>
+                            <p class="text-uppercase mb-0 small fw-bold letter-spacing-1">
+                                Motion Sensor
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6 mb-3">
+                <div id="sireneStatus" class="status-card sirene-inactive p-4 h-100">
+                    <div class="d-flex align-items-center">
+                        <div class="icon-wrapper">
+                            <i class="fas fa-bullhorn fa-2x" id="sireneIcon"></i>
+                        </div>
+                        <div>
+                            <h4 class="mb-1" id="sireneText">INACTIVE</h4>
+                            <p class="text-uppercase mb-0 small fw-bold letter-spacing-1">
+                                Alarm Siren
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Control Buttons -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="d-flex justify-content-center flex-wrap gap-3">
+                    <button id="btnCapture" class="control-button btn btn-primary">
+                        <i class="fas fa-camera me-2"></i>
+                        Capture Image
+                    </button>
+                    <button id="btnSensorOn" class="control-button btn btn-success">
+                        <i class="fas fa-play me-2"></i>
+                        Sensor ON
+                    </button>
+                    <button id="btnSensorOff" class="control-button btn btn-secondary">
+                        <i class="fas fa-stop me-2"></i>
+                        Sensor OFF
+                    </button>
+                    <button id="btnSireneToggle" class="control-button btn btn-warning">
+                        <i class="fas fa-volume-up me-2"></i>
+                        Toggle Siren
+                    </button>
+                     <a href="captured.html" class="control-button btn btn-info">
+                    <i class="fas fa-images me-2"></i>
+                    Lihat Galeri Gambar
+                    </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Activity Calendar -->
+        <div class="row">
+            <div class="col-12">
+                <div class="card border-0 shadow-sm">
+                    <div class="card-header bg-transparent border-0 pb-0">
+                        <h5 class="mb-0">
+                            <i class="fas fa-calendar-alt me-2"></i>
+                            Activity Calendar
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div id="calendar">
+                            <!-- Calendar will be generated here -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Debug Panel -->
+        <div class="mt-4">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-transparent border-0 pb-0">
+                    <h6 class="mb-0">
+                        <i class="fas fa-bug me-2"></i>
+                        Debug Log
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div id="debugLog" class="bg-dark text-light p-3 rounded" style="height: 150px; overflow-y: auto; font-family: monospace; font-size: 0.8rem;">
+                        System initialized...<br>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
+
+    <script>
+        // MQTT Configuration
+        let MQTT_CONFIG = {
+            host: 'broker.hivemq.com',
+            port: 8000,
+            clientId: 'sinchan_web_' + Math.random().toString(16).substr(2, 8),
+            username: '',
+            password: '',
+            topics: {
+                sensor: 'sinchan/sensor/status',
+                motion: 'sinchan/sensor/motion',
+                sirene: 'sinchan/sirene/status',
+                camera: 'sinchan/camera/capture'
+            }
+        };
+
+        let mqttClient = null;
+        let activityDates = [];
+        let reconnectAttempts = 0;
+        const maxReconnectAttempts = 5;
+
+        // ====== ALERT NOTIFICATION SYSTEM ======
+        function showAlert(html) {
+        const container = document.getElementById('debugLog');
+        container.innerHTML += html;
+        container.scrollTop = container.scrollHeight;
+        }
+
+        function notifyDoorOpened() {
+        showAlert(`
+            <div class="alert d-flex bg-warning-l2 brc-warning-m3 border-2 radius-1 py-2 px-3 mb-2">
+            <i class="fas fa-door-open fa-lg text-warning me-3 mt-1"></i>
+            <div>
+                <strong class="text-dark-tp3">Pintu Terbuka!</strong><br />
+                Deteksi gerakan oleh sensor PIR.<br />
+                <small class="text-grey-m2"><i class="far fa-clock"></i> ${new Date().toLocaleTimeString()}</small>
+            </div>
+            </div>
+        `);
+        }
+
+        function notifyImageCaptured() {
+        showAlert(`
+            <div class="alert d-flex bg-info-l3 brc-info-m2 border-2 radius-1 py-2 px-3 mb-2">
+            <i class="fas fa-camera fa-lg text-info me-3 mt-1"></i>
+            <div>
+                <strong class="text-dark-tp3">Gambar Tertangkap!</strong><br />
+                Kamera telah mengirimkan gambar ke sistem.<br />
+                <small class="text-grey-m2"><i class="far fa-clock"></i> ${new Date().toLocaleTimeString()}</small>
+            </div>
+            </div>
+        `);
+        }
+
+        function notifySirene(status) {
+        const label = status === 'on' ? 'Sirene Aktif!' : 'Sirene Nonaktif';
+        const tone = status === 'on' ? 'danger' : 'secondary';
+        const icon = status === 'on' ? 'fa-volume-up' : 'fa-volume-mute';
+        showAlert(`
+            <div class="alert d-flex bgc-${tone}-l3 brc-${tone}-m2 border-2 radius-1 py-2 px-3 mb-2">
+            <i class="fas ${icon} fa-lg text-${tone} me-3 mt-1"></i>
+            <div>
+                <strong class="text-dark-tp3">${label}</strong><br />
+                Sirene ${status === 'on' ? 'dinyalakan' : 'dimatikan'} oleh sistem.<br />
+                <small class="text-grey-m2"><i class="far fa-clock"></i> ${new Date().toLocaleTimeString()}</small>
+            </div>
+            </div>
+        `);
+        }
+
+        // Debug logging
+        function debugLog(message) {
+            const logEl = document.getElementById('debugLog');
+            const timestamp = new Date().toLocaleTimeString();
+            logEl.innerHTML += `[${timestamp}] ${message}<br>`;
+            logEl.scrollTop = logEl.scrollHeight;
+            console.log(message);
+        }
+
+        // Update MQTT config from form
+        function updateMQTTConfig() {
+            MQTT_CONFIG.host = document.getElementById('mqttHost').value || 'broker.hivemq.com';
+            MQTT_CONFIG.port = parseInt(document.getElementById('mqttPort').value) || 8000;
+            MQTT_CONFIG.username = document.getElementById('mqttUsername').value;
+            MQTT_CONFIG.password = document.getElementById('mqttPassword').value;
+            MQTT_CONFIG.clientId = 'sinchan_web_' + Math.random().toString(16).substr(2, 8);
+        }
+
+        function showAlert(message, type = 'info', icon = 'fa-info-circle') {
+            const toastContainer = document.getElementById('toastContainer');
+            const timestamp = new Date().toLocaleTimeString();
+
+            const toast = document.createElement('div');
+            toast.className = `toast align-items-center text-bg-${type} border-0 show mb-2`;
+            toast.setAttribute('role', 'alert');
+            toast.setAttribute('aria-live', 'assertive');
+            toast.setAttribute('aria-atomic', 'true');
+            toast.style.minWidth = '300px';
+
+            toast.innerHTML = `
+                <div class="d-flex">
+                    <div class="toast-body">
+                        <i class="fas ${icon} me-2"></i>
+                        ${message}
+                        <div class="small text-muted">${timestamp}</div>
+                    </div>
+                    <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+                </div>
+            `;
+
+            toastContainer.appendChild(toast);
+
+            setTimeout(() => {
+                toast.classList.remove('show');
+                toast.classList.add('hide');
+                setTimeout(() => toast.remove(), 500);
+            }, 5000);
+        }
+
+
+
+        // Initialize MQTT Connection
+        function connectMQTT() {
+            updateMQTTConfig();
+            
+            try {
+                if (mqttClient && mqttClient.isConnected()) {
+                    mqttClient.disconnect();
+                    debugLog('Disconnected from previous MQTT session');
+                }
+
+                debugLog(`Attempting to connect to ${MQTT_CONFIG.host}:${MQTT_CONFIG.port}`);
+                
+                mqttClient = new Paho.MQTT.Client(MQTT_CONFIG.host, MQTT_CONFIG.port, MQTT_CONFIG.clientId);
+                
+                mqttClient.onConnectionLost = onConnectionLost;
+                mqttClient.onMessageArrived = onMessageArrived;
+
+                const options = {
+                    onSuccess: onConnect,
+                    onFailure: onConnectFailure,
+                    keepAliveInterval: 30,
+                    cleanSession: true,
+                    useSSL: false,
+                    timeout: 10
+                };
+
+                // Add credentials if provided
+                if (MQTT_CONFIG.username) {
+                    options.userName = MQTT_CONFIG.username;
+                    options.password = MQTT_CONFIG.password;
+                }
+
+                mqttClient.connect(options);
+                
+                // Update button state
+                document.getElementById('btnConnect').innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Connecting...';
+                document.getElementById('btnConnect').disabled = true;
+                
+            } catch (error) {
+                debugLog('MQTT initialization error: ' + error.message);
+                updateConnectionStatus(false);
+            }
+        }
+
+        function onConnect() {
+            debugLog('MQTT Connected successfully');
+            updateConnectionStatus(true);
+            reconnectAttempts = 0;
+            
+            // Update button state
+            document.getElementById('btnConnect').innerHTML = '<i class="fas fa-check me-1"></i>Connected';
+            document.getElementById('btnConnect').disabled = false;
+            
+            // Subscribe to topics
+            Object.values(MQTT_CONFIG.topics).forEach(topic => {
+                try {
+                    mqttClient.subscribe(topic);
+                    debugLog('Subscribed to: ' + topic);
+                } catch (error) {
+                    debugLog('Failed to subscribe to ' + topic + ': ' + error.message);
+                }
+            });
+        }
+
+        function onConnectFailure(error) {
+            debugLog('MQTT Connection failed: ' + error.errorMessage);
+            updateConnectionStatus(false);
+            
+            // Update button state
+            document.getElementById('btnConnect').innerHTML = '<i class="fas fa-plug me-1"></i>Connect';
+            document.getElementById('btnConnect').disabled = false;
+            
+            // Auto-reconnect with exponential backoff
+            if (reconnectAttempts < maxReconnectAttempts) {
+                reconnectAttempts++;
+                const delay = Math.min(1000 * Math.pow(2, reconnectAttempts), 30000);
+                debugLog(`Reconnecting in ${delay/1000} seconds... (attempt ${reconnectAttempts}/${maxReconnectAttempts})`);
+                setTimeout(connectMQTT, delay);
+            } else {
+                debugLog('Max reconnection attempts reached. Please check your configuration.');
+            }
+        }
+
+        function onConnectionLost(responseObject) {
+            if (responseObject.errorCode !== 0) {
+                debugLog('MQTT Connection lost: ' + responseObject.errorMessage);
+                updateConnectionStatus(false);
+                
+                // Update button state
+                document.getElementById('btnConnect').innerHTML = '<i class="fas fa-plug me-1"></i>Connect';
+                document.getElementById('btnConnect').disabled = false;
+                
+                // Attempt to reconnect
+                setTimeout(connectMQTT, 5000);
+            }
+        }
+
+        function onMessageArrived(message) {
+            const topic = message.destinationName;
+            const payload = message.payloadString;
+            
+            debugLog(`Message received: ${topic} = ${payload}`);
+            updateLastUpdate();
+
+            switch (topic) {
+                case MQTT_CONFIG.topics.sensor:
+                    updateSensorStatus(payload);
+                    break;
+                case MQTT_CONFIG.topics.motion:
+                    handleMotionDetection(payload);
+                    break;
+                case MQTT_CONFIG.topics.sirene:
+                    updateSireneStatus(payload);
+                    break;
+                case MQTT_CONFIG.topics.motion:
+                    handleMotionDetection(payload);
+                    notifyDoorOpened();
+                    break;
+                case MQTT_CONFIG.topics.sirene:
+                    updateSireneStatus(payload);
+                    notifySirene(payload === 'on' || payload === '1' ? 'on' : 'off');
+                    break;
+                case MQTT_CONFIG.topics.camera:
+                    notifyImageCaptured();
+                    break;
+            }
+        }
+
+        function updateConnectionStatus(isOnline) {
+            const statusEl = document.getElementById('connectionStatus');
+            const statusText = statusEl.querySelector('span');
+            
+            if (isOnline) {
+                statusEl.className = 'connection-status connection-online';
+                statusText.textContent = 'Online';
+            } else {
+                statusEl.className = 'connection-status connection-offline';
+                statusText.textContent = 'Offline';
+            }
+        }
+
+        function updateSensorStatus(status) {
+            const sensorEl = document.getElementById('sensorStatus');
+            const sensorText = document.getElementById('sensorText');
+
+            sensorEl.className = 'status-card p-4 h-100';
+            
+            if (status === 'active' || status === '1' || status === 'on') {
+                sensorEl.classList.add('sensor-active');
+                sensorText.textContent = 'ACTIVE';
+            } else {
+                sensorEl.classList.add('sensor-inactive');
+                sensorText.textContent = 'INACTIVE';
+            }
+        }
+
+        function handleMotionDetection(status) {    
+            if (status === 'detected' || status === '1' || status === 'true') {
+                const sensorEl = document.getElementById('sensorStatus');
+                const sensorText = document.getElementById('sensorText');
+
+                sensorEl.className = 'status-card sensor-motion p-4 h-100';
+                sensorText.textContent = 'MOTION DETECTED';
+
+                debugLog('Motion detected!');
+                showAlert('🚪 Pintu Terbuka Terdeteksi oleh Sensor PIR', 'warning', 'fa-door-open');
+
+                // Add current date to activity dates
+                const today = new Date().toISOString().split('T')[0];
+                if (!activityDates.includes(today)) {
+                    activityDates.push(today);
+                    updateCalendar();
+                    saveActivityDates();
+                }
+
+                // Reset after 3 seconds
+                setTimeout(() => {
+                    updateSensorStatus('active');
+                }, 3000);
+            }
+        }
+
+        function updateSireneStatus(status) {
+            const sireneEl = document.getElementById('sireneStatus');
+            const sireneText = document.getElementById('sireneText');
+
+            sireneEl.className = 'status-card p-4 h-100';
+            
+            if (status === 'active' || status === '1' || status === 'on') {
+                showAlert('🚨 Sirene AKTIF', 'danger', 'fa-bullhorn');
+                sireneEl.classList.add('sirene-active');
+                sireneText.textContent = 'ACTIVE';
+            } else {
+                showAlert('🔇 Sirene NONAKTIF', 'secondary', 'fa-bullhorn');
+                sireneEl.classList.add('sirene-inactive');
+                sireneText.textContent = 'INACTIVE';
+            }
+        }
+
+        function updateLastUpdate() {
+            const now = new Date();
+            const timeString = now.toLocaleTimeString();
+            document.getElementById('lastUpdate').textContent = `Last update: ${timeString}`;
+        }
+
+        // Control Functions
+        function publishMessage(topic, message) {
+            if (mqttClient && mqttClient.isConnected()) {
+                try {
+                    const mqttMessage = new Paho.MQTT.Message(message);
+                    mqttMessage.destinationName = topic;
+                    mqttClient.send(mqttMessage);
+                    debugLog(`Message sent: ${topic} = ${message}`);
+                } catch (error) {
+                    debugLog('Failed to send message: ' + error.message);
+                }
+            } else {
+                debugLog('MQTT not connected. Cannot send message.');
+                alert('MQTT not connected. Please check your connection.');
+            }
+        }
+
+        // Calendar Functions
+        function generateCalendar() {
+            const calendarEl = document.getElementById('calendar');
+            const now = new Date();
+            const currentMonth = now.getMonth();
+            const currentYear = now.getFullYear();
+            
+            const firstDay = new Date(currentYear, currentMonth, 1).getDay();
+            const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
+            
+            const monthNames = [
+                'January', 'February', 'March', 'April', 'May', 'June',
+                'July', 'August', 'September', 'October', 'November', 'December'
+            ];
+            
+            let calendarHTML = `
+                <div class="text-center mb-3">
+                    <h4>${monthNames[currentMonth]} ${currentYear}</h4>
+                </div>
+                <table class="table table-bordered">
+                    <thead class="table-light">
+                        <tr>
+                            <th class="text-center">Sun</th>
+                            <th class="text-center">Mon</th>
+                            <th class="text-center">Tue</th>
+                            <th class="text-center">Wed</th>
+                            <th class="text-center">Thu</th>
+                            <th class="text-center">Fri</th>
+                            <th class="text-center">Sat</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
+            
+            let date = 1;
+            for (let i = 0; i < 6; i++) {
+                calendarHTML += '<tr>';
+                for (let j = 0; j < 7; j++) {
+                    if (i === 0 && j < firstDay) {
+                        calendarHTML += '<td class="text-center p-3"></td>';
+                    } else if (date > daysInMonth) {
+                        calendarHTML += '<td class="text-center p-3"></td>';
+                    } else {
+                        const dateStr = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-${String(date).padStart(2, '0')}`;
+                        const hasActivity = activityDates.includes(dateStr);
+                        const isToday = date === now.getDate();
+                        
+                        let cellClass = 'text-center p-3';
+                        if (hasActivity) cellClass += ' calendar-has-activity';
+                        if (isToday && !hasActivity) cellClass += ' bg-info text-white';
+                        
+                        const clickHandler = hasActivity ? `onclick="viewActivityDate('${dateStr}')"` : '';
+                        
+                        calendarHTML += `<td class="${cellClass}" ${clickHandler}>
+                            <div>${date}</div>
+                        </td>`;
+                        date++;
+                    }
+                }
+                calendarHTML += '</tr>';
+                if (date > daysInMonth) break;
+            }
+            
+            calendarHTML += '</tbody></table>';
+            calendarEl.innerHTML = calendarHTML;
+        }
+
+        function updateCalendar() {
+            generateCalendar();
+        }
+
+        function viewActivityDate(dateStr) {
+            alert(`Activity detected on ${dateStr}. Gallery feature coming soon!`);
+        }
+
+        function saveActivityDates() {
+            localStorage.setItem('activityDates', JSON.stringify(activityDates));
+        }
+
+        function loadActivityDates() {
+            const saved = localStorage.getItem('activityDates');
+            if (saved) {
+                activityDates = JSON.parse(saved);
+            }
+        }
+
+        function logout() {
+            if (confirm('Are you sure you want to logout?')) {
+                window.location.href = "login.html"
+                
+            }
+        }
+
+        // Event Listeners
+        document.addEventListener('DOMContentLoaded', function() {
+            debugLog('Dashboard initialized');
+            loadActivityDates();
+            generateCalendar();
+            
+            // Auto-connect on load
+            setTimeout(connectMQTT, 1000);
+        });
+
+        // Control button event listeners
+        document.getElementById('btnCapture').addEventListener('click', function() {
+            publishMessage(MQTT_CONFIG.topics.camera, '1');
+            this.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Capturing...';
+            setTimeout(() => {
+                this.innerHTML = '<i class="fas fa-camera me-2"></i>Capture Image';
+            }, 2000);
+        });
+
+        document.getElementById('btnSensorOn').addEventListener('click', function() {
+            publishMessage(MQTT_CONFIG.topics.sensor, '1');
+        });
+
+        document.getElementById('btnSensorOff').addEventListener('click', function() {
+            publishMessage(MQTT_CONFIG.topics.sensor, '0');
+        });
+
+        document.getElementById('btnSireneToggle').addEventListener('click', function() {
+            const currentStatus = document.getElementById('sireneText').textContent;
+            const newStatus = currentStatus === 'ACTIVE' ? '0' : '1';
+            publishMessage(MQTT_CONFIG.topics.sirene, newStatus);
+        });
+        // Save activity dates periodically
+        setInterval(saveActivityDates, 30000);
+    </script>
+<!-- Floating Toast Container -->
+<div id="toastContainer" style="position: fixed; top: 20px; right: 20px; z-index: 2000;"></div>
+
+</body>
+</div>
+</html>
