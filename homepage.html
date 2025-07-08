@@ -464,11 +464,13 @@
 
         // Update MQTT config from form
         function updateMQTTConfig() {
-            MQTT_CONFIG.host = document.getElementById('mqttHost').value || 'broker.hivemq.com';
-            MQTT_CONFIG.port = parseInt(document.getElementById('mqttPort').value) || 8000;
+            MQTT_CONFIG.useSSL = true;
+            MQTT_CONFIG.host = document.getElementById('mqttHost').value || '50d16c3705494389a2649a641024f95c.s1.eu.hivemq.cloud';
+            MQTT_CONFIG.port = parseInt(document.getElementById('mqttPort').value) || 8884;
             MQTT_CONFIG.username = document.getElementById('mqttUsername').value;
             MQTT_CONFIG.password = document.getElementById('mqttPassword').value;
             MQTT_CONFIG.clientId = 'sinchan_web_' + Math.random().toString(16).substr(2, 8);
+            MQTT_CONFIG.path = '/mqtt';
         }
 
         function showAlert(message, type = 'info', icon = 'fa-info-circle') {
@@ -516,7 +518,7 @@
 
                 debugLog(`Attempting to connect to ${MQTT_CONFIG.host}:${MQTT_CONFIG.port}`);
                 
-                mqttClient = new Paho.MQTT.Client(MQTT_CONFIG.host, MQTT_CONFIG.port, MQTT_CONFIG.clientId);
+                mqttClient = new Paho.MQTT.Client(MQTT_CONFIG.host, MQTT_CONFIG.port, MQTT_CONFIG.path, MQTT_CONFIG.clientId);
                 
                 mqttClient.onConnectionLost = onConnectionLost;
                 mqttClient.onMessageArrived = onMessageArrived;
@@ -526,7 +528,7 @@
                     onFailure: onConnectFailure,
                     keepAliveInterval: 30,
                     cleanSession: true,
-                    useSSL: false,
+                    useSSL: true,
                     timeout: 10
                 };
 
