@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="id">
 <head>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Sinchan Security Gallery</title>
@@ -468,6 +469,11 @@
     </div>
 
     <script>
+        const supabase = supabase.createClient(
+            'https://rfthcjgdoigmetfdfmyh.supabase.co', // Ganti ini
+            'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJmdGhjamdkb2lnbWV0ZmRmbXloIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc1MDkxODExOCwiZXhwIjoyMDY2NDk0MTE4fQ.Gp5YA4M06LItLoMBFUdKUJ1D85SCBhGolZpByCl-HBQ' // Ganti ini
+        );
+
         // Sample data structure to store folders and photos
         let folders = [];
         let currentFolderId = null;
@@ -488,6 +494,33 @@
             loadFolders();
             setupEventListeners();
         });
+
+        async function loadCapturedImages() {
+            const { data, error } = await supabase
+            .from('bts_intrusion')
+            .select('alert, date, time, image_url')
+            .order('id', { ascending: false })
+            .limit(10); // Ambil 10 gambar terbaru
+
+            if (error) {
+                console.error("Error fetching data:", error);
+                return;
+            }
+
+            const container = document.getElementById('imagesContainer');
+            container.innerHTML = '';
+
+            data.forEach(item => {
+                const div = document.createElement('div');
+                div.innerHTML = `
+                <img src="${item.image_url}" alt="Captured Image"><p><strong>${item.alert}</strong><br>${item.date} ${item.time}</p>`;
+                container.appendChild(div);
+            });
+        }
+
+  // Load saat pertama kali & refresh tiap 10 detik
+  loadCapturedImages();
+  setInterval(loadCapturedImages, 10000);
         
         // Load folders from local storage or initialize
         function loadFolders() {
