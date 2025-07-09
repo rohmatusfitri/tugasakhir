@@ -497,25 +497,36 @@
 
         async function loadCapturedImages() {
             const { data, error } = await supabase
-            .from('bts_intrusion')
-            .select('alert, date, time, image_url')
-            .order('id', { ascending: false })
-            .limit(10); // Ambil 10 gambar terbaru
+                .from('bts_intrusion')
+                .select('alert, date, time, image_url')
+                .order('id', { ascending: false })
+                .limit(10);
 
-            if (error) {
-                console.error("Error fetching data:", error);
-                return;
-            }
+        if (error) {
+            console.error("Error fetching data:", error);
+            return;
+        }
 
-            const container = document.getElementById('imagesContainer');
-            container.innerHTML = '';
+        galleryGrid.innerHTML = ''; // gunakan elemen galleryGrid yang sudah ada
 
-            data.forEach(item => {
-                const div = document.createElement('div');
-                div.innerHTML = `
-                <img src="${item.image_url}" alt="Captured Image"><p><strong>${item.alert}</strong><br>${item.date} ${item.time}</p>`;
-                container.appendChild(div);
-            });
+        if (data.length === 0) {
+            emptyState.style.display = 'block';
+            return;
+        }
+
+        data.forEach(item => {
+            const photoCard = document.createElement('div');
+            photoCard.className = 'photo-card fade-in';
+
+            photoCard.innerHTML = `
+              <img src="${item.image_url}" alt="Captured image" class="photo-image">
+              <div class="photo-info">
+              <div class="photo-time">${item.date} ${item.time}</div>
+              </div>
+            `;
+
+            galleryGrid.appendChild(photoCard);
+          });
         }
 
   // Load saat pertama kali & refresh tiap 10 detik
