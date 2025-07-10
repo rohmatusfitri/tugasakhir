@@ -2,7 +2,8 @@
 <html lang="id">
 <head>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/paho-mqtt/1.0.1/mqttws31.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/paho-
+    /1.0.1/mqttws31.min.js"></script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Sinchan Security Gallery</title>
@@ -475,7 +476,7 @@
             'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJmdGhjamdkb2lnbWV0ZmRmbXloIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc1MDkxODExOCwiZXhwIjoyMDY2NDk0MTE4fQ.Gp5YA4M06LItLoMBFUdKUJ1D85SCBhGolZpByCl-HBQ' // Ganti ini
         );
         const mqttTopic = "sinchan/camera/database";
-        const mqttClient = new Paho.MQTT.Client("broker.hivemq.com", Number(8883), "web_client_" + Math.random().toString(16).substr(2, 8));
+        const mqttClient = new Paho.MQTT.Client("broker.hivemq.com", Number(8884), "web_client_" + Math.random().toString(16).substr(2, 8));
 
         // Sample data structure to store folders and photos
         let folders = [];
@@ -497,13 +498,37 @@
             loadFolders();
             setupEventListeners();
         });
+        
         mqttClient.onMessageArrived = function (message) {
             if (message.destinationName === mqttTopic) {
                 const imageUrl = message.payloadString;
-                showNotification("Gambar baru diterima dari sistem.", "info");
+                showNotification("📸 Gambar baru diterima dari sistem.", "info");
+                
+                const now = new Date();
+                const folderId = Date.now().toString();
+                const folderName = `Door Open - ${formatDateTime(now)}`;
+
+                const newFolder = {
+                    id: folderId,
+                    name: folderName,
+                    timestamp: now.toISOString(),
+                    photos: [{
+                        id: `photo-${folderId}`,
+                        timestamp: now.toISOString(),
+                        url: imageUrl
+                    }]
+                };
+
+                // Tambahkan folder baru ke awal list
+                folders.unshift(newFolder);
+                saveFolders();
+                selectFolder(folderId);
+
+                // Tambahkan langsung ke galeri
                 insertImageToGallery(imageUrl);
             }
         };
+
         
         mqttClient.connect({
             onSuccess: () => mqttClient.subscribe(mqttTopic),
@@ -544,9 +569,9 @@
           });
         }
 
-  // Load saat pertama kali & refresh tiap 10 detik
+  // Load saat pertama kali & refresh tiap 5 detik
   loadCapturedImages();
-  setInterval(loadCapturedImages, 10000);
+  setInterval(loadCapturedImages, 5000);
         
         function insertImageToGallery(url) {
             const photoCard = document.createElement("div");
@@ -580,7 +605,7 @@
         // Set up event listeners
         function setupEventListeners() {
             // Simulate motion detection
-            simulateBtn.addEventListener('click', simulateMotionDetection);
+            // simulateBtn.addEventListener('click', simulateMotionDetection);
             
             // Delete folder button
             deleteFolderBtn.addEventListener('click', deleteCurrentFolder);
@@ -592,52 +617,52 @@
         }
         
         // Simulate motion detection (for demo)
-        function simulateMotionDetection() {
-            // Create a new folder for this detection
-            const now = new Date();
-            const folderId = Date.now().toString();
-            const folderName = `Door Open - ${formatDateTime(now)}`;
+        // // function simulateMotionDetection() {
+        //     // Create a new folder for this detection
+        //     const now = new Date();
+        //     const folderId = Date.now().toString();
+        //     const folderName = `Door Open - ${formatDateTime(now)}`;
             
-            const newFolder = {
-                id: folderId,
-                name: folderName,
-                timestamp: now.toISOString(),
-                photos: []
-            };
+        //     const newFolder = {
+        //         id: folderId,
+        //         name: folderName,
+        //         timestamp: now.toISOString(),
+        //         photos: []
+        //     };
             
-            // Add the new folder to the beginning of the list
-            folders.unshift(newFolder);
+        //     // Add the new folder to the beginning of the list
+        //     folders.unshift(newFolder);
             
-            // Add 5 photos to the folder
-            for (let i = 0; i < 5; i++) {
-                setTimeout(() => {
-                    const photoTime = new Date(now.getTime() + i * 3000);
-                    newFolder.photos.push({
-                        id: `photo-${Date.now()}-${i}`,
-                        timestamp: photoTime.toISOString()
-                    });
+        //     // Add 5 photos to the folder
+        //     for (let i = 0; i < 5; i++) {
+        //         setTimeout(() => {
+        //             const photoTime = new Date(now.getTime() + i * 3000);
+        //             newFolder.photos.push({
+        //                 id: `photo-${Date.now()}-${i}`,
+        //                 timestamp: photoTime.toISOString()
+        //             });
                     
-                    // If this is the current folder, render the photos
-                    if (currentFolderId === folderId) {
-                        renderPhotos();
-                    }
+        //             // If this is the current folder, render the photos
+        //             if (currentFolderId === folderId) {
+        //                 renderPhotos();
+        //             }
                     
-                    // Save after adding each photo
-                    saveFolders();
-                }, i * 100);
-            }
+        //             // Save after adding each photo
+        //             saveFolders();
+        //         }, i * 100);
+        //     }
             
-            // Render folders and select the new one
-            renderFolders();
-            selectFolder(folderId);
-            emptyState.style.display = 'none';
+        //     // Render folders and select the new one
+        //     renderFolders();
+        //     selectFolder(folderId);
+        //     emptyState.style.display = 'none';
             
-            // Show notification
-            showNotification(`Motion detected! 5 photos captured.`, 'success');
+        //     // Show notification
+        //     showNotification(`Motion detected! 5 photos captured.`, 'success');
             
-            // Save folders
-            saveFolders();
-        }
+        //     // Save folders
+        //     saveFolders();
+        // }
         
         // Render folders in sidebar
         function renderFolders() {
