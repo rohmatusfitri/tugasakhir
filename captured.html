@@ -2,6 +2,7 @@
 <html lang="id">
 <head>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/paho-mqtt/1.0.1/mqttws31.min.js"></script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Sinchan Security Gallery</title>
@@ -473,6 +474,8 @@
             'https://rfthcjgdoigmetfdfmyh.supabase.co', // Ganti ini
             'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJmdGhjamdkb2lnbWV0ZmRmbXloIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc1MDkxODExOCwiZXhwIjoyMDY2NDk0MTE4fQ.Gp5YA4M06LItLoMBFUdKUJ1D85SCBhGolZpByCl-HBQ' // Ganti ini
         );
+        const mqttTopic = "sinchan/camera/database";
+        const mqttClient = new Paho.MQTT.Client("broker.hivemq.com", Number(8000), "web_client_" + Math.random().toString(16).substr(2, 8));
 
         // Sample data structure to store folders and photos
         let folders = [];
@@ -493,6 +496,18 @@
         document.addEventListener('DOMContentLoaded', () => {
             loadFolders();
             setupEventListeners();
+        });
+        mqttClient.onMessageArrived = function (message) {
+            if (message.destinationName === mqttTopic) {
+                const imageUrl = message.payloadString;
+                showNotification("Gambar baru diterima dari sistem.", "info");
+                insertImageToGallery(imageUrl);
+            }
+        };
+        
+        mqttClient.connect({
+            onSuccess: () => mqttClient.subscribe(mqttTopic),
+            useSSL: false
         });
 
         async function loadCapturedImages() {
@@ -533,6 +548,15 @@
   loadCapturedImages();
   setInterval(loadCapturedImages, 10000);
         
+        function insertImageToGallery(url) {
+            const photoCard = document.createElement("div");
+            photoCard.className = "photo-card fade-in";
+            const timestamp = new Date().toLocaleString("id-ID");
+            photoCard.innerHTML = `<img src="${url}" class="photo-image" alt="Gambar baru"><div class="photo-info"><div class="photo-time">${timestamp}</div></div>
+            `;
+            galleryGrid.prepend(photoCard); // insert at top
+        }
+
         // Load folders from local storage or initialize
         function loadFolders() {
             const savedFolders = localStorage.getItem('motionFolders');
