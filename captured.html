@@ -507,7 +507,7 @@
         
         mqttClient.connect({
             onSuccess: () => mqttClient.subscribe(mqttTopic),
-            useSSL: false
+            useSSL: true
         });
 
         async function loadCapturedImages() {
