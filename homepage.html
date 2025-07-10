@@ -396,7 +396,8 @@
                 motion: 'sinchan/sensor/motion',
                 sirene: 'sinchan/sirene/status',
                 camera: 'sinchan/camera/capture',
-                activate: 'sinchan/sirene/activate'
+                activate: 'sinchan/sirene/activate',
+                database: 'sinchan/camera/database'
             }
         };
 
@@ -629,8 +630,12 @@
                     updateSireneStatus(payload);
                     notifySirene(payload === 'on' || payload === '1' ? 'on' : 'off');
                     break;
-                case MQTT_CONFIG.topics.camera:
-                    notifyImageCaptured();
+                // case MQTT_CONFIG.topics.camera:
+                //     notifyImageCaptured();
+                //     break;
+                case MQTT_CONFIG.topics.database:
+                    notifyImageCaptured(); // show alert
+                    publishMessage(MQTT_CONFIG.topics.activate, "1"); // trigger sirene
                     break;
             }
         }
@@ -834,7 +839,7 @@
 
         // Control button event listeners
         document.getElementById('btnCapture').addEventListener('click', function() {
-            publishMessage(MQTT_CONFIG.topics.camera, '1');
+            publishMessage(MQTT_CONFIG.topics.camera, 'capture');
             this.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Capturing...';
             setTimeout(() => {
                 this.innerHTML = '<i class="fas fa-camera me-2"></i>Capture Image';
@@ -842,17 +847,17 @@
         });
 
         document.getElementById('btnSensorOn').addEventListener('click', function() {
-            publishMessage(MQTT_CONFIG.topics.sensor, '1');
+            publishMessage(MQTT_CONFIG.topics.sensor, 'sensorOn');
         });
 
         document.getElementById('btnSensorOff').addEventListener('click', function() {
-            publishMessage(MQTT_CONFIG.topics.sensor, '0');
+            publishMessage(MQTT_CONFIG.topics.sensor, 'sensorOff');
         });
 
         document.getElementById('btnSireneToggle').addEventListener('click', function() {
             const currentStatus = document.getElementById('sireneText').textContent;
             const newStatus = currentStatus === 'ACTIVE' ? '0' : '1';
-            publishMessage(MQTT_CONFIG.topics.sirene, newStatus);
+            publishMessage(MQTT_CONFIG.topics.activate, newStatus);
         });
         // Save activity dates periodically
         setInterval(saveActivityDates, 30000);
