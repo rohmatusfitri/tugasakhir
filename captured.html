@@ -470,45 +470,15 @@
     </div>
 
     <script>
-        const supabase = supabase.createClient(
-        'https://rfthcjgdoigmetfdfmyh.supabase.co',
-        'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJmdGhjamdkb2lnbWV0ZmRmbXloIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc1MDkxODExOCwiZXhwIjoyMDY2NDk0MTE4fQ.Gp5YA4M06LItLoMBFUdKUJ1D85SCBhGolZpByCl-HBQ'
-    );
+        const { createClient } = supabase;
+        const sb = createClient(
+            'https://rfthcjgdoigmetfdfmyh.supabase.co', // Ganti ini
+            'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJmdGhjamdkb2lnbWV0ZmRmbXloIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc1MDkxODExOCwiZXhwIjoyMDY2NDk0MTE4fQ.Gp5YA4M06LItLoMBFUdKUJ1D85SCBhGolZpByCl-HBQ' // Ganti ini
+        );
+        const mqttImageTopic = "sinchan/camera/database";
+        const mqttMotionTopic = "sinchan/sensor/motion";
+        const mqttClient = new Paho.MQTT.Client("broker.hivemq.com", Number(8883), "web_client_" + Math.random().toString(16).substr(2, 8));
 
-    const mqttTopic = "sinchan/camera/database";
-    const mqttClient = new Paho.MQTT.Client("broker.hivemq.com", 8883, "web_client_" + Math.random().toString(16).substr(2, 8));
-
-    mqttClient.onMessageArrived = function (message) {
-        if (message.destinationName === mqttTopic) {
-            const imageUrl = message.payloadString;
-            showNotification("📸 Gambar baru diterima dari sistem.", "info");
-
-            const now = new Date();
-            const folderId = Date.now().toString();
-            const folderName = `Door Open - ${formatDateTime(now)}`;
-
-            const newFolder = {
-                id: folderId,
-                name: folderName,
-                timestamp: now.toISOString(),
-                photos: [{
-                    id: `photo-${folderId}`,
-                    timestamp: now.toISOString(),
-                    url: imageUrl
-                }]
-            };
-
-            folders.unshift(newFolder);
-            saveFolders();
-            selectFolder(folderId);
-            insertImageToGallery(imageUrl);
-        }
-    };
-
-    mqttClient.connect({
-        onSuccess: () => mqttClient.subscribe(mqttTopic),
-        useSSL: true
-    });
         // Sample data structure to store folders and photos
         let folders = [];
         let currentFolderId = null;
@@ -529,45 +499,67 @@
             loadFolders();
             setupEventListeners();
         });
-        
+
+        function createNewFolder() {
+            const now = new Date();
+            const folderId = Date.now().toString();
+            const folderName = `Door Open - ${formatDateTime(now)}`;
+
+            const newFolder = {
+                id: folderId,
+                name: folderName,
+                timestamp: now.toISOString(),
+                photos: []
+            };
+
+            folders.unshift(newFolder);
+            saveFolders();
+            renderFolders();
+            selectFolder(folderId);
+        }
+
         mqttClient.onMessageArrived = function (message) {
-            if (message.destinationName === mqttTopic) {
+            if (message.destinationName === mqttMotionTopic) {
+                createNewFolder();
+                showNotification("🚪 Gerakan terdeteksi - folder baru dibuat.", "info");
+                return;
+            }
+
+            if (message.destinationName === mqttImageTopic) {
                 const imageUrl = message.payloadString;
                 showNotification("📸 Gambar baru diterima dari sistem.", "info");
-                
-                const now = new Date();
-                const folderId = Date.now().toString();
-                const folderName = `Door Open - ${formatDateTime(now)}`;
 
-                const newFolder = {
-                    id: folderId,
-                    name: folderName,
-                    timestamp: now.toISOString(),
-                    photos: [{
-                        id: `photo-${folderId}`,
-                        timestamp: now.toISOString(),
-                        url: imageUrl
-                    }]
+                if (!folders.length) {
+                createNewFolder();
+                }
+
+                const currentFolder = folders[0];
+                const now = new Date();
+
+                const newPhoto = {
+                id: `photo-${Date.now()}`,
+                timestamp: now.toISOString(),
+                url: imageUrl
                 };
 
-                // Tambahkan folder baru ke awal list
-                folders.unshift(newFolder);
+                currentFolder.photos.push(newPhoto);
                 saveFolders();
-                selectFolder(folderId);
-
-                // Tambahkan langsung ke galeri
+                if (currentFolderId === currentFolder.id) {
                 insertImageToGallery(imageUrl);
+                }
             }
         };
 
-        
         mqttClient.connect({
-            onSuccess: () => mqttClient.subscribe(mqttTopic),
+            onSuccess: () => {
+                mqttClient.subscribe(mqttImageTopic);
+                mqttClient.subscribe(mqttMotionTopic);
+            },
             useSSL: true
         });
-
+                
         async function loadCapturedImages() {
-            const { data, error } = await supabase
+            const { data, error } = await sb
                 .from('bts_intrusion')
                 .select('alert, date, time, image_url')
                 .order('id', { ascending: false })
