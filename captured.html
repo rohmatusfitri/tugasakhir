@@ -142,6 +142,12 @@
             margin-top: 3px;
         }
         
+        .folder-count {
+            font-size: 0.7rem;
+            opacity: 0.6;
+            margin-top: 2px;
+        }
+        
         .folder-delete {
             color: var(--accent-color);
             background: none;
@@ -215,6 +221,12 @@
         .delete-folder-btn:hover {
             background-color: #c0392b;
             transform: translateY(-2px);
+        }
+        
+        .delete-folder-btn:disabled {
+            background-color: #bdc3c7;
+            cursor: not-allowed;
+            transform: none;
         }
         
         /* Gallery Grid */
@@ -313,23 +325,31 @@
             margin-bottom: 1rem;
         }
         
-        .simulate-btn {
-            background-color: var(--secondary-color);
-            color: white;
-            border: none;
-            padding: 0.8rem 1.5rem;
-            border-radius: 5px;
-            cursor: pointer;
-            font-weight: 600;
-            display: inline-flex;
+        /* Status Indicator */
+        .status-indicator {
+            display: flex;
             align-items: center;
-            gap: 8px;
-            transition: var(--transition);
+            gap: 10px;
+            margin-right: 20px;
         }
         
-        .simulate-btn:hover {
-            background-color: #2980b9;
-            transform: translateY(-2px);
+        .status-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background-color: var(--success-color);
+            animation: pulse 2s infinite;
+        }
+        
+        .status-dot.disconnected {
+            background-color: var(--accent-color);
+            animation: none;
+        }
+        
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
         }
         
         /* Responsive */
@@ -362,8 +382,8 @@
         
         /* Animation */
         @keyframes fadeIn {
-            from { opacity: 0; }
-            to { opacity: 1; }
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
         }
         
         .fade-in {
@@ -414,6 +434,10 @@
             <i class="fas fa-shield-alt logo-icon"></i>
             <div class="logo-text">SINCHAN <span>SECURITY</span></div>
         </div>
+        <div class="status-indicator">
+            <div class="status-dot" id="statusDot"></div>
+            <span id="statusText">Connecting...</span>
+        </div>
         <button class="menu-toggle">
             <i class="fas fa-bars"></i>
         </button>
@@ -461,27 +485,26 @@
                 <i class="fas fa-camera empty-icon"></i>
                 <div class="empty-text">No motion detected yet</div>
                 <p>Your security system will automatically capture photos when motion is detected.</p>
-                <button class="simulate-btn" id="simulateBtn">
-                    <i class="fas fa-play-circle"></i>
-                    Simulate Motion Detection
-                </button>
             </div>
         </div>
     </div>
 
     <script>
-        const { createClient } = supabase;
-        const sb = createClient(
-            'https://rfthcjgdoigmetfdfmyh.supabase.co', // Ganti ini
-            'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJmdGhjamdkb2lnbWV0ZmRmbXloIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc1MDkxODExOCwiZXhwIjoyMDY2NDk0MTE4fQ.Gp5YA4M06LItLoMBFUdKUJ1D85SCBhGolZpByCl-HBQ' // Ganti ini
+        // Initialize Supabase client
+        const supabase = window.supabase.createClient(
+            'https://rfthcjgdoigmetfdfmyh.supabase.co',
+            'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJmdGhjamdkb2lnbWV0ZmRmbXloIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc1MDkxODExOCwiZXhwIjoyMDY2NDk0MTE4fQ.Gp5YA4M06LItLoMBFUdKUJ1D85SCBhGolZpByCl-HBQ'
         );
+
+        // MQTT Configuration
         const mqttImageTopic = "sinchan/camera/database";
         const mqttMotionTopic = "sinchan/sensor/motion";
-        const mqttClient = new Paho.MQTT.Client("broker.hivemq.com", Number(8883), "web_client_" + Math.random().toString(16).substr(2, 8));
+        const mqttClient = new Paho.MQTT.Client("broker.hivemq.com", Number(8884), "web_client_" + Math.random().toString(16).substr(2, 8));
 
-        // Sample data structure to store folders and photos
+        // Global variables
         let folders = [];
         let currentFolderId = null;
+        let mqttConnected = false;
         
         // DOM Elements
         const foldersContainer = document.getElementById('foldersContainer');
@@ -490,20 +513,142 @@
         const currentFolderTime = document.getElementById('currentFolderTime');
         const deleteFolderBtn = document.getElementById('deleteFolderBtn');
         const emptyState = document.getElementById('emptyState');
-        const simulateBtn = document.getElementById('simulateBtn');
-        const notification = document.querySelector('.notification');
-        const notificationMessage = document.querySelector('.notification-message');
+        const statusDot = document.getElementById('statusDot');
+        const statusText = document.getElementById('statusText');
         
-        // Initialize
+        // Initialize application
         document.addEventListener('DOMContentLoaded', () => {
             loadFolders();
             setupEventListeners();
+            connectMQTT();
+            loadInitialImages();
         });
 
+        // MQTT Connection and Message Handling
+        function connectMQTT() {
+            mqttClient.onConnectionLost = onConnectionLost;
+            mqttClient.onMessageArrived = onMessageArrived;
+            
+            mqttClient.connect({
+                onSuccess: onMQTTConnect,
+                onFailure: onMQTTFailure,
+                useSSL: true
+            });
+        }
+
+        function onMQTTConnect() {
+            mqttConnected = true;
+            statusDot.classList.remove('disconnected');
+            statusText.textContent = 'Connected';
+            
+            // Subscribe to topics
+            mqttClient.subscribe(mqttImageTopic);
+            mqttClient.subscribe(mqttMotionTopic);
+            
+            showNotification("🔗 Connected to MQTT broker", "success");
+        }
+
+        function onMQTTFailure(message) {
+            mqttConnected = false;
+            statusDot.classList.add('disconnected');
+            statusText.textContent = 'Disconnected';
+            
+            showNotification("❌ Failed to connect to MQTT broker", "error");
+            
+            // Retry connection after 5 seconds
+            setTimeout(() => {
+                connectMQTT();
+            }, 5000);
+        }
+
+        function onConnectionLost(responseObject) {
+            mqttConnected = false;
+            statusDot.classList.add('disconnected');
+            statusText.textContent = 'Disconnected';
+            
+            showNotification("🔌 MQTT connection lost. Reconnecting...", "error");
+            
+            // Retry connection
+            setTimeout(() => {
+                connectMQTT();
+            }, 2000);
+        }
+
+        function onMessageArrived(message) {
+            console.log("Message received:", message.destinationName, message.payloadString);
+            
+            if (message.destinationName === mqttMotionTopic) {
+                handleMotionDetection();
+            } else if (message.destinationName === mqttImageTopic) {
+                const command = message.payloadString.trim();
+                if (command === "imageDB") {
+                    handleImageCapture();
+                }
+            }
+        }
+
+        // Motion Detection Handler
+        function handleMotionDetection() {
+            createNewFolder();
+            showNotification("🚨 Motion detected! New folder created.", "info");
+        }
+
+        // Image Capture Handler
+        async function handleImageCapture() {
+            try {
+                const { data, error } = await supabase
+                    .from('bts_intrusion')
+                    .select('image_url, date, time')
+                    .order('id', { ascending: false })
+                    .limit(1);
+
+                if (error || !data || data.length === 0) {
+                    showNotification("⚠️ No new images found or failed to fetch", "warning");
+                    return;
+                }
+
+                const imageData = data[0];
+                const loadedUrls = getLoadedImageUrls();
+
+                if (loadedUrls.includes(imageData.image_url)) {
+                    console.log("Image already displayed");
+                    return;
+                }
+
+                if (folders.length === 0) createNewFolder();
+                const folder = folders.find(f => f.id === currentFolderId) || folders[0];
+
+                const photo = {
+                    id: `photo-${Date.now()}`,
+                    timestamp: new Date().toISOString(),
+                    url: imageData.image_url,
+                    date: imageData.date,
+                    time: imageData.time
+                };
+
+                folder.photos.push(photo);
+                loadedUrls.push(imageData.image_url);
+
+                saveLoadedImageUrls(loadedUrls);
+                saveFolders();
+                renderFolders();
+                if (currentFolderId === folder.id) {
+                    addPhotoToGallery(photo);
+                }
+
+                showNotification("📸 New image added to folder", "success");
+
+            } catch (err) {
+                console.error("Image fetch error:", err);
+                showNotification("❌ Error while handling new image", "error");
+            }
+        }
+
+        // Folder Management Functions
         function createNewFolder() {
             const now = new Date();
             const folderId = Date.now().toString();
-            const folderName = `Door Open - ${formatDateTime(now)}`;
+            const folderName = `Motion Detected - ${formatDateTime(now)}`;
 
             const newFolder = {
                 id: folderId,
@@ -516,295 +661,264 @@
             saveFolders();
             renderFolders();
             selectFolder(folderId);
+            
+            if (emptyState.style.display !== 'none') {
+                emptyState.style.display = 'none';
+            }
         }
 
-        mqttClient.onMessageArrived = function (message) {
-            if (message.destinationName === mqttMotionTopic) {
+        function addImageToCurrentFolder(imageData) {
+            // If no folders exist, create one
+            if (folders.length === 0) {
                 createNewFolder();
-                showNotification("🚪 Gerakan terdeteksi - folder baru dibuat.", "info");
-                return;
             }
 
-            if (message.destinationName === mqttImageTopic) {
-                const imageUrl = message.payloadString;
-                showNotification("📸 Gambar baru diterima dari sistem.", "info");
-
-                if (!folders.length) {
-                createNewFolder();
-                }
-
-                const currentFolder = folders[0];
-                const now = new Date();
-
-                const newPhoto = {
+            const currentFolder = folders.find(f => f.id === currentFolderId) || folders[0];
+            
+            const photo = {
                 id: `photo-${Date.now()}`,
-                timestamp: now.toISOString(),
-                url: imageUrl
-                };
+                timestamp: new Date().toISOString(),
+                url: imageData.image_url,
+                date: imageData.date,
+                time: imageData.time
+            };
 
-                currentFolder.photos.push(newPhoto);
-                saveFolders();
-                if (currentFolderId === currentFolder.id) {
-                insertImageToGallery(imageUrl);
-                }
+            currentFolder.photos.push(photo);
+            saveFolders();
+            renderFolders(); // Update folder count
+            
+            // If viewing the current folder, update the gallery
+            if (currentFolderId === currentFolder.id) {
+                addPhotoToGallery(photo);
             }
-        };
-
-        mqttClient.connect({
-            onSuccess: () => {
-                mqttClient.subscribe(mqttImageTopic);
-                mqttClient.subscribe(mqttMotionTopic);
-            },
-            useSSL: true
-        });
-                
-        async function loadCapturedImages() {
-            const { data, error } = await sb
-                .from('bts_intrusion')
-                .select('alert, date, time, image_url')
-                .order('id', { ascending: false })
-                .limit(10);
-
-        if (error) {
-            console.error("Error fetching data:", error);
-            return;
         }
 
-        galleryGrid.innerHTML = ''; // gunakan elemen galleryGrid yang sudah ada
-
-        if (data.length === 0) {
-            emptyState.style.display = 'block';
-            return;
-        }
-
-        data.forEach(item => {
+        function addPhotoToGallery(photo) {
             const photoCard = document.createElement('div');
             photoCard.className = 'photo-card fade-in';
-
             photoCard.innerHTML = `
-              <img src="${item.image_url}" alt="Captured image" class="photo-image">
-              <div class="photo-info">
-              <div class="photo-time">${item.date} ${item.time}</div>
-              </div>
+                <img src="${photo.url}" alt="Captured image" class="photo-image" onerror="this.style.display='none'">
+                <div class="photo-info">
+                    <div class="photo-time">${photo.date} ${photo.time}</div>
+                </div>
+                <div class="photo-actions">
+                    <button class="action-btn download-btn" onclick="downloadPhoto('${photo.url}')" title="Download">
+                        <i class="fas fa-download"></i>
+                    </button>
+                    <button class="action-btn delete-btn" onclick="deletePhoto('${photo.id}')" title="Delete">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
             `;
-
-            galleryGrid.appendChild(photoCard);
-          });
+            galleryGrid.insertBefore(photoCard, galleryGrid.firstChild);
         }
 
-  // Load saat pertama kali & refresh tiap 5 detik
-  loadCapturedImages();
-  setInterval(loadCapturedImages, 5000);
-        
-        function insertImageToGallery(url) {
-            const photoCard = document.createElement("div");
-            photoCard.className = "photo-card fade-in";
-            const timestamp = new Date().toLocaleString("id-ID");
-            photoCard.innerHTML = `<img src="${url}" class="photo-image" alt="Gambar baru"><div class="photo-info"><div class="photo-time">${timestamp}</div></div>
-            `;
-            galleryGrid.prepend(photoCard); // insert at top
+        // Load initial images from database
+        async function loadInitialImages() {
+            try {
+                const { data, error } = await supabase
+                    .from('bts_intrusion')
+                    .select('image_url, date, time')
+                    .order('id', { ascending: false })
+                    .limit(10);
+
+                if (error) {
+                    console.error("Error loading initial images:", error);
+                    return;
+                }
+
+                if (data && data.length > 0) {
+                    const loadedUrls = getLoadedImageUrls();
+                    const newImages = data.filter(img => !loadedUrls.includes(img.image_url));
+
+                    if (newImages.length === 0) return;
+
+                    if (folders.length === 0) createNewFolder();
+                    const firstFolder = folders[0];
+
+                    newImages.forEach(imageData => {
+                        const photo = {
+                            id: `photo-${Date.now()}-${Math.random()}`,
+                            timestamp: new Date().toISOString(),
+                            url: imageData.image_url,
+                            date: imageData.date,
+                            time: imageData.time
+                        };
+                        firstFolder.photos.push(photo);
+                        loadedUrls.push(imageData.image_url);
+                    });
+
+                    saveLoadedImageUrls(loadedUrls);
+                    saveFolders();
+                    renderFolders();
+
+                    if (currentFolderId === firstFolder.id) {
+                        renderPhotos();
+                    }
+                }
+            } catch (error) {
+                console.error("Error loading initial images:", error);
+            }
         }
 
-        // Load folders from local storage or initialize
+        // Storage Management
         function loadFolders() {
             const savedFolders = localStorage.getItem('motionFolders');
             if (savedFolders) {
-                folders = JSON.parse(savedFolders);
-                renderFolders();
-                if (folders.length > 0) {
-                    emptyState.style.display = 'none';
-                    selectFolder(folders[0].id);
+                try {
+                    folders = JSON.parse(savedFolders);
+                    renderFolders();
+                    if (folders.length > 0) {
+                        emptyState.style.display = 'none';
+                        selectFolder(folders[0].id);
+                    } else {
+                        emptyState.style.display = 'block';
+                    }
+                } catch (error) {
+                    console.error("Error parsing saved folders:", error);
+                    folders = [];
+                    emptyState.style.display = 'block';
                 }
             } else {
                 emptyState.style.display = 'block';
             }
         }
-        
-        // Save folders to local storage
+
         function saveFolders() {
-            localStorage.setItem('motionFolders', JSON.stringify(folders));
+            try {
+                localStorage.setItem('motionFolders', JSON.stringify(folders));
+            } catch (error) {
+                console.error("Error saving folders:", error);
+            }
         }
-        
-        // Set up event listeners
-        function setupEventListeners() {
-            // Simulate motion detection
-            // simulateBtn.addEventListener('click', simulateMotionDetection);
-            
-            // Delete folder button
-            deleteFolderBtn.addEventListener('click', deleteCurrentFolder);
-            
-            // Menu toggle for mobile
-            document.querySelector('.menu-toggle').addEventListener('click', () => {
-                document.querySelector('.sidebar').classList.toggle('active');
-            });
-        }
-        
-        // Simulate motion detection (for demo)
-        // // function simulateMotionDetection() {
-        //     // Create a new folder for this detection
-        //     const now = new Date();
-        //     const folderId = Date.now().toString();
-        //     const folderName = `Door Open - ${formatDateTime(now)}`;
-            
-        //     const newFolder = {
-        //         id: folderId,
-        //         name: folderName,
-        //         timestamp: now.toISOString(),
-        //         photos: []
-        //     };
-            
-        //     // Add the new folder to the beginning of the list
-        //     folders.unshift(newFolder);
-            
-        //     // Add 5 photos to the folder
-        //     for (let i = 0; i < 5; i++) {
-        //         setTimeout(() => {
-        //             const photoTime = new Date(now.getTime() + i * 3000);
-        //             newFolder.photos.push({
-        //                 id: `photo-${Date.now()}-${i}`,
-        //                 timestamp: photoTime.toISOString()
-        //             });
-                    
-        //             // If this is the current folder, render the photos
-        //             if (currentFolderId === folderId) {
-        //                 renderPhotos();
-        //             }
-                    
-        //             // Save after adding each photo
-        //             saveFolders();
-        //         }, i * 100);
-        //     }
-            
-        //     // Render folders and select the new one
-        //     renderFolders();
-        //     selectFolder(folderId);
-        //     emptyState.style.display = 'none';
-            
-        //     // Show notification
-        //     showNotification(`Motion detected! 5 photos captured.`, 'success');
-            
-        //     // Save folders
-        //     saveFolders();
-        // }
-        
-        // Render folders in sidebar
+
+        // Render Functions
         function renderFolders() {
             foldersContainer.innerHTML = '';
-            
+
             folders.forEach(folder => {
                 const folderElement = document.createElement('div');
-                folderElement.className = 'folder';
-                if (folder.id === currentFolderId) {
-                    folderElement.classList.add('active');
-                }
-                
+                folderElement.className = `folder ${folder.id === currentFolderId ? 'active' : ''}`;
                 folderElement.innerHTML = `
                     <div>
                         <div class="folder-name">${folder.name}</div>
-                        <div class="folder-time">${formatTime(new Date(folder.timestamp))}</div>
+                        <div class="folder-time">${formatDateTime(new Date(folder.timestamp))}</div>
+                        <div class="folder-count">${folder.photos.length} photos</div>
                     </div>
-                    <button class="folder-delete" data-id="${folder.id}">
+                    <button class="folder-delete" onclick="deleteFolder('${folder.id}')" title="Delete folder">
                         <i class="fas fa-trash"></i>
                     </button>
                 `;
-                
-                folderElement.addEventListener('click', () => {
-                    selectFolder(folder.id);
+
+                folderElement.addEventListener('click', (e) => {
+                    if (!e.target.closest('.folder-delete')) {
+                        selectFolder(folder.id);
+                    }
                 });
-                
-                // Add delete event listener
-                const deleteBtn = folderElement.querySelector('.folder-delete');
-                deleteBtn.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    deleteFolder(folder.id);
-                });
-                
+
                 foldersContainer.appendChild(folderElement);
             });
         }
-        
-        // Select a folder to view
+
         function selectFolder(folderId) {
             currentFolderId = folderId;
             const folder = folders.find(f => f.id === folderId);
             
             if (folder) {
                 currentFolderName.textContent = folder.name;
-                currentFolderTime.textContent = `Detected at: ${formatDateTime(new Date(folder.timestamp))}`;
+                currentFolderTime.textContent = formatDateTime(new Date(folder.timestamp));
                 deleteFolderBtn.disabled = false;
-                
-                // Highlight selected folder
-                document.querySelectorAll('.folder').forEach(el => {
-                    el.classList.remove('active');
-                });
-                document.querySelector(`.folder[data-id="${folderId}"]`)?.classList.add('active');
-                
-                // Render photos
                 renderPhotos();
+                renderFolders(); // Update active state
             }
         }
-        
-        // Render photos for current folder
+
         function renderPhotos() {
             galleryGrid.innerHTML = '';
             const folder = folders.find(f => f.id === currentFolderId);
             
-            if (folder && folder.photos.length > 0) {
-                folder.photos.forEach(photo => {
-                    const photoCard = document.createElement('div');
-                    photoCard.className = 'photo-card fade-in';
-                    
-                    // Generate random image from placeholder service
-                    const imgUrl = `https://picsum.photos/seed/${photo.id}/400/300`;
-                    
-                    photoCard.innerHTML = `
-                        <img src="${imgUrl}" alt="Captured photo" class="photo-image">
-                        <div class="photo-info">
-                            <div class="photo-time">${formatTime(new Date(photo.timestamp))}</div>
-                        </div>
-                        <div class="photo-actions">
-                            <button class="action-btn download-btn" data-id="${photo.id}">
-                                <i class="fas fa-download"></i>
-                            </button>
-                            <button class="action-btn delete-btn" data-id="${photo.id}">
-                                <i class="fas fa-trash"></i>
-                            </button>
-                        </div>
-                    `;
-                    
-                    // Add event listeners to action buttons
-                    const downloadBtn = photoCard.querySelector('.download-btn');
-                    downloadBtn.addEventListener('click', () => {
-                        downloadPhoto(imgUrl);
-                    });
-                    
-                    const deleteBtn = photoCard.querySelector('.delete-btn');
-                    deleteBtn.addEventListener('click', () => {
-                        deletePhoto(photo.id);
-                    });
-                    
-                    galleryGrid.appendChild(photoCard);
-                });
-            }
+            if (!folder) return;
+
+            folder.photos.forEach(photo => {
+                const photoCard = document.createElement('div');
+                photoCard.className = 'photo-card fade-in';
+                photoCard.innerHTML = `
+                    <img src="${photo.url}" alt="Captured image" class="photo-image" onerror="this.style.display='none'">
+                    <div class="photo-info">
+                        <div class="photo-time">${photo.date || formatDateTime(new Date(photo.timestamp))} ${photo.time || ''}</div>
+                    </div>
+                    <div class="photo-actions">
+                        <button class="action-btn download-btn" onclick="downloadPhoto('${photo.url}')" title="Download">
+                            <i class="fas fa-download"></i>
+                        </button>
+                        <button class="action-btn delete-btn" onclick="deletePhoto('${photo.id}')" title="Delete">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+                `;
+                galleryGrid.appendChild(photoCard);
+            });
         }
-        
-        // Delete a photo
-        function deletePhoto(photoId) {
+
+        // Delete Functions
+        async function deletePhoto(photoId) {
+            if (!confirm('Are you sure you want to delete this photo?')) return;
+
             const folder = folders.find(f => f.id === currentFolderId);
-            if (folder) {
-                folder.photos = folder.photos.filter(p => p.id !== photoId);
-                renderPhotos();
-                saveFolders();
-                showNotification('Photo deleted successfully', 'success');
-                
-                // If this was the last photo, show empty state
-                if (folder.photos.length === 0) {
-                    deleteFolder(currentFolderId);
+            if (!folder) return;
+
+            const photo = folder.photos.find(p => p.id === photoId);
+            if (!photo) return;
+
+            try {
+                // Ekstrak path dari URL storage
+                const urlParts = photo.url.split('/');
+                const filename = urlParts[urlParts.length - 1];
+                const storagePath = decodeURIComponent(filename);
+
+                // 1. Hapus dari Supabase Storage
+                const { error: storageError } = await supabase.storage
+                    .from('your_bucket_name') // Ganti dengan nama bucket kamu, contoh: 'images'
+                    .remove([storagePath]);
+
+                if (storageError) {
+                    console.error('Storage deletion error:', storageError);
+                    showNotification('❌ Failed to delete image from storage', 'error');
                 }
+
+                // 2. Hapus dari tabel `bts_intrusion`
+                const { error: dbError } = await supabase
+                    .from('bts_intrusion')
+                    .delete()
+                    .eq('image_url', photo.url);
+
+                if (dbError) {
+                    console.error('DB deletion error:', dbError);
+                    showNotification('❌ Failed to delete record from database', 'error');
+                }
+
+                // 3. Hapus dari localStorage
+                folder.photos = folder.photos.filter(p => p.id !== photoId);
+                saveFolders();
+                renderPhotos();
+                renderFolders();
+                showNotification('🗑️ Photo deleted successfully', 'success');
+
+            } catch (err) {
+                console.error("Deletion error:", err);
+                showNotification("❌ Error while deleting photo", "error");
             }
         }
-        
-        // Delete a folder
+
+        function saveLoadedImageUrls(urls) {
+            localStorage.setItem('loadedImageUrls', JSON.stringify(urls));
+        }
+
+        function getLoadedImageUrls() {
+            const stored = localStorage.getItem('loadedImageUrls');
+            return stored ? JSON.parse(stored) : [];
+        }
+
         function deleteFolder(folderId) {
             if (confirm('Are you sure you want to delete this folder and all its photos?')) {
                 folders = folders.filter(f => f.id !== folderId);
@@ -814,7 +928,6 @@
                 if (folders.length > 0) {
                     selectFolder(folders[0].id);
                 } else {
-                    // No folders left
                     currentFolderId = null;
                     currentFolderName.textContent = 'Select a folder';
                     currentFolderTime.textContent = 'No folder selected';
@@ -826,27 +939,22 @@
                 showNotification('Folder deleted successfully', 'success');
             }
         }
-        
-        // Delete the current folder
+
         function deleteCurrentFolder() {
             if (currentFolderId) {
                 deleteFolder(currentFolderId);
             }
         }
-        
-        // Download a photo
+
+        // Utility Functions
         function downloadPhoto(url) {
-            // In a real app, this would download the actual captured image
-            // For demo, we'll just simulate it
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `security_photo_${Date.now()}.jpg`;
+            link.click();
             showNotification('Photo download started...', 'info');
-            
-            // Simulate download
-            setTimeout(() => {
-                showNotification('Photo downloaded successfully', 'success');
-            }, 1000);
         }
-        
-        // Format date and time
+
         function formatDateTime(date) {
             return date.toLocaleString('id-ID', {
                 day: '2-digit',
@@ -857,24 +965,25 @@
                 second: '2-digit'
             });
         }
-        
-        // Format time
-        function formatTime(date) {
-            return date.toLocaleTimeString('id-ID', {
-                hour: '2-digit',
-                minute: '2-digit',
-                second: '2-digit'
-            });
-        }
-        
-        // Show notification
+
         function showNotification(message, type) {
-            notificationMessage.textContent = message;
+            const notification = document.querySelector('.notification');
+            const messageElement = document.querySelector('.notification-message');
+            messageElement.textContent = message;
             notification.className = `notification ${type} show`;
             
             setTimeout(() => {
                 notification.classList.remove('show');
             }, 3000);
+        }
+
+        // Event Listeners
+        function setupEventListeners() {
+            deleteFolderBtn.addEventListener('click', deleteCurrentFolder);
+            
+            document.querySelector('.menu-toggle').addEventListener('click', () => {
+                document.querySelector('.sidebar').classList.toggle('active');
+            });
         }
     </script>
 </body>
