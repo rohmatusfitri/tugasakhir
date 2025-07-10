@@ -839,7 +839,7 @@
             
             if (!folder) return;
 
-            folder.photos.forEach(photo => {
+            folder.photos.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp)).forEach(photo => {
                 const photoCard = document.createElement('div');
                 photoCard.className = 'photo-card fade-in';
                 photoCard.innerHTML = `
