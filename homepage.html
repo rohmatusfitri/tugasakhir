@@ -440,15 +440,15 @@
         }
 
         function notifySirene(status) {
-        const label = status === 'on' ? 'Sirene Aktif!' : 'Sirene Nonaktif';
-        const tone = status === 'on' ? 'danger' : 'secondary';
-        const icon = status === 'on' ? 'fa-volume-up' : 'fa-volume-mute';
+        const label = status === 'sireneOn' ? 'Sirene Aktif!' : 'Sirene Nonaktif';
+        const tone = status === 'sireneOn' ? 'danger' : 'secondary';
+        const icon = status === 'sireneOn' ? 'fa-volume-up' : 'fa-volume-mute';
         showAlert(`
             <div class="alert d-flex bgc-${tone}-l3 brc-${tone}-m2 border-2 radius-1 py-2 px-3 mb-2">
             <i class="fas ${icon} fa-lg text-${tone} me-3 mt-1"></i>
             <div>
                 <strong class="text-dark-tp3">${label}</strong><br />
-                Sirene ${status === 'on' ? 'dinyalakan' : 'dimatikan'} oleh sistem.<br />
+                Sirene ${status === 'sireneOn' ? 'dinyalakan' : 'dimatikan'} oleh sistem.<br />
                 <small class="text-grey-m2"><i class="far fa-clock"></i> ${new Date().toLocaleTimeString()}</small>
             </div>
             </div>
@@ -628,7 +628,7 @@
                     break;
                 case MQTT_CONFIG.topics.sirene:
                     updateSireneStatus(payload);
-                    notifySirene(payload === 'on' || payload === '1' ? 'on' : 'off');
+                    notifySirene(payload === 'sireneOn' || payload === '1' ? 'on' : 'off');
                     break;
                 case MQTT_CONFIG.topics.camera:
                     notifyImageCaptured();
