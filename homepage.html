@@ -700,7 +700,7 @@
 
             sireneEl.className = 'status-card p-4 h-100';
             
-            if (status === 'active' || status === '1' || status === 'on') {
+            if (status === 'active' || status === '1' || status === 'sireneOn') {
                 showAlert('🚨 Sirene AKTIF', 'danger', 'fa-bullhorn');
                 sireneEl.classList.add('sirene-active');
                 sireneText.textContent = 'ACTIVE';
