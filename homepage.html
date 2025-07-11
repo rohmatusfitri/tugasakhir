@@ -630,12 +630,12 @@
                     updateSireneStatus(payload);
                     notifySirene(payload === 'on' || payload === '1' ? 'on' : 'off');
                     break;
-                // case MQTT_CONFIG.topics.camera:
-                //     notifyImageCaptured();
-                //     break;
+                case MQTT_CONFIG.topics.camera:
+                    notifyImageCaptured();
+                    break;
                 case MQTT_CONFIG.topics.database:
                     notifyImageCaptured(); // show alert
-                    publishMessage(MQTT_CONFIG.topics.activate, "1"); // trigger sirene
+                    publishMessage(MQTT_CONFIG.topics.activate, "sireneOn"); // trigger sirene
                     break;
             }
         }
