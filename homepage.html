@@ -85,9 +85,51 @@
         }
 
         .sensor-motion {
-            background: linear-gradient(135deg, #dbeafe 0%, #93c5fd 100%);
-            color: #1e3a8a;
-            animation: pulse 1s infinite;
+            background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+            color: #92400e;
+            animation: motionSequence 2s infinite;
+        }
+        
+        .sensor-sequence {
+            background: linear-gradient(135deg, #fecaca 0%, #f87171 100%);
+            color: #7f1d1d;
+            animation: sequenceActive 1.5s infinite;
+        }
+
+        @keyframes motionSequence {
+            0%, 100% { 
+                opacity: 1; 
+                transform: scale(1);
+                box-shadow: 0 0 10px rgba(251, 191, 36, 0.5);
+            }
+            25% { 
+                opacity: 0.8; 
+                transform: scale(1.02);
+                box-shadow: 0 0 20px rgba(251, 191, 36, 0.8);
+            }
+            50% { 
+                opacity: 0.9; 
+                transform: scale(1.01);
+                box-shadow: 0 0 15px rgba(251, 191, 36, 0.6);
+            }
+            75% { 
+                opacity: 0.85; 
+                transform: scale(1.02);
+                box-shadow: 0 0 25px rgba(251, 191, 36, 0.9);
+            }
+        }
+        
+        @keyframes sequenceActive {
+            0%, 100% { 
+                opacity: 1; 
+                transform: scale(1);
+                box-shadow: 0 0 15px rgba(239, 68, 68, 0.6);
+            }
+            50% { 
+                opacity: 0.7; 
+                transform: scale(1.03);
+                box-shadow: 0 0 25px rgba(239, 68, 68, 1);
+            }
         }
 
         .sirene-active {
@@ -135,6 +177,9 @@
             border: none;
             position: relative;
             overflow: hidden;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
         }
 
         .control-button::before {
@@ -155,6 +200,7 @@
         .control-button:hover {
             transform: translateY(-2px);
             box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
+            text-decoration: none;
         }
 
         .calendar-has-activity {
@@ -221,9 +267,54 @@
             background: linear-gradient(135deg, #64748b, #475569);
             border: none;
         }
+        
+        /* Custom toast notification colors */
+        .toast.text-bg-secondary {
+            background-color: #6b7280 !important;
+            color: white !important;
+        }
+        
+        .toast.text-bg-danger {
+            background-color: #dc2626 !important;
+            color: white !important;
+        }
+
+        .btn-info {
+            background: linear-gradient(135deg, #0891b2, #0e7490);
+            border: none;
+            color: white;
+        }
+
+        /* Loading overlay for smooth transitions */
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(255, 255, 255, 0.9);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+        }
+
+        .loading-overlay.show {
+            display: flex;
+        }
     </style>
 </head>
 <body>
+    <!-- Loading Overlay -->
+    <div class="loading-overlay" id="loadingOverlay">
+        <div class="text-center">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+            <div class="mt-2">Restoring dashboard state...</div>
+        </div>
+    </div>
+
     <!-- Connection Status -->
     <div id="connectionStatus" class="connection-status connection-offline">
         <i class="fas fa-circle me-2"></i>
@@ -251,7 +342,6 @@
             </div>
         </div>
         
-        <div id="alertArea" class="mb-4"></div>
         <!-- MQTT Configuration Panel -->
         <div class="config-panel">
             <h5 class="mb-3">
@@ -334,11 +424,10 @@
                         <i class="fas fa-volume-up me-2"></i>
                         Toggle Siren
                     </button>
-                     <a href="captured.html" class="control-button btn btn-info">
-                    <i class="fas fa-images me-2"></i>
-                    Lihat Galeri Gambar
-                    </a>
-                    </div>
+                     <button class="control-button btn btn-info" onclick="navigateToGallery()">
+                        <i class="fas fa-images me-2"></i>
+                        Lihat Galeri Gambar
+                    </button>
                 </div>
             </div>
         </div>
@@ -384,7 +473,8 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
 
     <script>
-        // MQTT Configuration
+        // Global state management
+        let isInitialized = false;
         let MQTT_CONFIG = {
             host: '',
             port: '',
@@ -406,6 +496,241 @@
         let reconnectAttempts = 0;
         const maxReconnectAttempts = 5;
 
+        // Check if returning from another page
+        function checkNavigationState() {
+            const navigatingFrom = sessionStorage.getItem('navigatingFromPage');
+            const skipInit = sessionStorage.getItem('skipInitialization');
+            
+            if (navigatingFrom && skipInit === 'true') {
+                debugLog(`Returning from ${navigatingFrom}, restoring state...`);
+                showLoadingOverlay(true);
+                
+                // Restore complete state
+                restoreCompletePageState();
+                
+                // Clear navigation flags
+                sessionStorage.removeItem('navigatingFromPage');
+                sessionStorage.removeItem('skipInitialization');
+                
+                setTimeout(() => {
+                    showLoadingOverlay(false);
+                    debugLog('State restored successfully');
+                }, 1000);
+                
+                return true; // Skip normal initialization
+            }
+            return false; // Proceed with normal initialization
+        }
+
+        function showLoadingOverlay(show) {
+            const overlay = document.getElementById('loadingOverlay');
+            if (show) {
+                overlay.classList.add('show');
+            } else {
+                overlay.classList.remove('show');
+            }
+        }
+
+        // Session Management - Check login status
+        document.addEventListener('DOMContentLoaded', function() {
+            // Check login first
+            const isLoggedIn = sessionStorage.getItem('isLoggedIn');
+            if (isLoggedIn !== 'true') {
+                window.location.replace("login.html");
+                return;
+            }
+            
+            // Check if returning from navigation
+            if (checkNavigationState()) {
+                return; // Skip normal initialization
+            }
+            
+            // Normal initialization
+            initializeHomepage();
+        });
+
+        // Handle page visibility changes (back button, etc)
+        document.addEventListener('visibilitychange', function() {
+            if (!document.hidden && isInitialized) {
+                // Page became visible again, check if we need to restore state
+                const shouldRestore = sessionStorage.getItem('homepageNeedsRestore');
+                if (shouldRestore === 'true') {
+                    debugLog('Page visible again, restoring state...');
+                    restoreCompletePageState();
+                    sessionStorage.removeItem('homepageNeedsRestore');
+                }
+            }
+        });
+
+        function initializeHomepage() {
+            if (isInitialized) return;
+            
+            debugLog('Initializing homepage...');
+            loadActivityDates();
+            generateCalendar();
+            restorePageState();
+            
+            // Initialize sirene status tracking without notification
+            const sireneEl = document.getElementById('sireneStatus');
+            sireneEl.setAttribute('data-sirene-status', 'unknown'); // Use 'unknown' to allow first notification
+            sireneEl.setAttribute('data-last-notification', '0');
+            
+            // Auto-connect MQTT
+            setTimeout(connectMQTT, 1000);
+            
+            isInitialized = true;
+            debugLog('Homepage initialization complete');
+        }
+
+        function restoreCompletePageState() {
+            // Restore MQTT configuration
+            const savedMqttHost = sessionStorage.getItem('homepageMqttHost');
+            const savedMqttPort = sessionStorage.getItem('homepageMqttPort');
+            const savedMqttUsername = sessionStorage.getItem('homepageMqttUsername');
+            const savedConnectionStatus = sessionStorage.getItem('homepageConnectionStatus');
+            const savedLastUpdate = sessionStorage.getItem('homepageLastUpdate');
+            const savedDebugLog = sessionStorage.getItem('homepageDebugLog');
+            const savedSensorStatus = sessionStorage.getItem('homepageSensorStatus');
+            const savedSireneStatus = sessionStorage.getItem('homepageSireneStatus');
+            
+            if (savedMqttHost) document.getElementById('mqttHost').value = savedMqttHost;
+            if (savedMqttPort) document.getElementById('mqttPort').value = savedMqttPort;
+            if (savedMqttUsername) document.getElementById('mqttUsername').value = savedMqttUsername;
+            
+            // Restore connection status
+            if (savedConnectionStatus) {
+                const statusEl = document.getElementById('connectionStatus');
+                const statusText = statusEl.querySelector('span');
+                if (savedConnectionStatus === 'online') {
+                    statusEl.className = 'connection-status connection-online';
+                    statusText.textContent = 'Online';
+                } else {
+                    statusEl.className = 'connection-status connection-offline';
+                    statusText.textContent = 'Offline';
+                }
+            }
+            
+            // Restore last update
+            if (savedLastUpdate) {
+                document.getElementById('lastUpdate').textContent = savedLastUpdate;
+            }
+            
+            // Restore debug log
+            if (savedDebugLog) {
+                document.getElementById('debugLog').innerHTML = savedDebugLog;
+            }
+            
+            // Restore sensor status
+            if (savedSensorStatus) {
+                const statusData = JSON.parse(savedSensorStatus);
+                const sensorEl = document.getElementById('sensorStatus');
+                const sensorText = document.getElementById('sensorText');
+                sensorEl.className = statusData.className;
+                sensorText.textContent = statusData.text;
+            }
+            
+            // Restore sirene status
+            if (savedSireneStatus) {
+                const statusData = JSON.parse(savedSireneStatus);
+                const sireneEl = document.getElementById('sireneStatus');
+                const sireneText = document.getElementById('sireneText');
+                sireneEl.className = statusData.className;
+                sireneText.textContent = statusData.text;
+            }
+            
+            // Restore activity dates and calendar
+            const savedActivityDates = sessionStorage.getItem('homepageActivityDates');
+            if (savedActivityDates) {
+                activityDates = JSON.parse(savedActivityDates);
+                updateCalendar();
+            }
+            
+            // Reconnect MQTT if it was connected
+            if (savedConnectionStatus === 'online') {
+                setTimeout(() => {
+                    debugLog('Attempting to reconnect MQTT...');
+                    connectMQTT();
+                }, 1500);
+            }
+        }
+
+        function restorePageState() {
+            // Restore MQTT configuration from sessionStorage
+            const savedMqttHost = sessionStorage.getItem('homepageMqttHost');
+            const savedMqttPort = sessionStorage.getItem('homepageMqttPort');
+            const savedMqttUsername = sessionStorage.getItem('homepageMqttUsername');
+            
+            if (savedMqttHost) document.getElementById('mqttHost').value = savedMqttHost;
+            if (savedMqttPort) document.getElementById('mqttPort').value = savedMqttPort;
+            if (savedMqttUsername) document.getElementById('mqttUsername').value = savedMqttUsername;
+            
+            // Restore activity dates
+            const savedActivityDates = sessionStorage.getItem('homepageActivityDates');
+            if (savedActivityDates) {
+                activityDates = JSON.parse(savedActivityDates);
+                updateCalendar();
+            }
+        }
+
+        function saveCompletePageState() {
+            // Save MQTT configuration
+            sessionStorage.setItem('homepageMqttHost', document.getElementById('mqttHost').value);
+            sessionStorage.setItem('homepageMqttPort', document.getElementById('mqttPort').value);
+            sessionStorage.setItem('homepageMqttUsername', document.getElementById('mqttUsername').value);
+            
+            // Save connection status
+            const statusEl = document.getElementById('connectionStatus');
+            const isOnline = statusEl.classList.contains('connection-online');
+            sessionStorage.setItem('homepageConnectionStatus', isOnline ? 'online' : 'offline');
+            
+            // Save last update
+            sessionStorage.setItem('homepageLastUpdate', document.getElementById('lastUpdate').textContent);
+            
+            // Save debug log
+            sessionStorage.setItem('homepageDebugLog', document.getElementById('debugLog').innerHTML);
+            
+            // Save sensor status
+            const sensorEl = document.getElementById('sensorStatus');
+            const sensorText = document.getElementById('sensorText');
+            sessionStorage.setItem('homepageSensorStatus', JSON.stringify({
+                className: sensorEl.className,
+                text: sensorText.textContent
+            }));
+            
+            // Save sirene status
+            const sireneEl = document.getElementById('sireneStatus');
+            const sireneText = document.getElementById('sireneText');
+            sessionStorage.setItem('homepageSireneStatus', JSON.stringify({
+                className: sireneEl.className,
+                text: sireneText.textContent
+            }));
+            
+            // Save activity dates
+            sessionStorage.setItem('homepageActivityDates', JSON.stringify(activityDates));
+        }
+
+        function navigateToGallery() {
+            debugLog('Navigating to gallery, saving state...');
+            
+            // Save complete current state
+            saveCompletePageState();
+            
+            // Set navigation flags
+            sessionStorage.setItem('navigatingFromPage', 'homepage');
+            sessionStorage.setItem('skipInitialization', 'true');
+            
+            // Navigate
+            window.location.href = "captured.html";
+        }
+
+        function logout() {
+            if (confirm('Are you sure you want to logout?')) {
+                // Clear all session data
+                sessionStorage.clear();
+                window.location.replace("login.html");
+            }
+        }
+
         // ====== ALERT NOTIFICATION SYSTEM ======
         function showAlert(html) {
         const container = document.getElementById('debugLog');
@@ -426,13 +751,55 @@
         `);
         }
 
-        function notifyImageCaptured() {
+        function notifyImageCaptured(captureType = 'manual') {
+            const typeText = captureType === 'manual' ? 'Manual Capture' : 
+                           captureType === 'motion' ? 'Motion Detection' : 'Capture';
+            
+            showAlert(`
+                <div class="alert d-flex bg-info-l3 brc-info-m2 border-2 radius-1 py-2 px-3 mb-2">
+                <i class="fas fa-camera fa-lg text-info me-3 mt-1"></i>
+                <div>
+                    <strong class="text-dark-tp3">Gambar Berhasil Ditangkap!</strong><br />
+                    ${typeText} - Gambar disimpan ke database.<br />
+                    <small class="text-grey-m2"><i class="far fa-clock"></i> ${new Date().toLocaleTimeString()}</small>
+                </div>
+                </div>
+            `);
+        }
+
+        function notifyMotionSequence() {
         showAlert(`
-            <div class="alert d-flex bg-info-l3 brc-info-m2 border-2 radius-1 py-2 px-3 mb-2">
-            <i class="fas fa-camera fa-lg text-info me-3 mt-1"></i>
+            <div class="alert d-flex bg-warning-l2 brc-warning-m3 border-2 radius-1 py-2 px-3 mb-2">
+            <i class="fas fa-exclamation-triangle fa-lg text-warning me-3 mt-1"></i>
             <div>
-                <strong class="text-dark-tp3">Gambar Tertangkap!</strong><br />
-                Kamera telah mengirimkan gambar ke sistem.<br />
+                <strong class="text-dark-tp3">Motion Sequence Dimulai!</strong><br />
+                10 gambar (3s interval) → 5s delay → 10s sirene<br />
+                <small class="text-grey-m2"><i class="far fa-clock"></i> ${new Date().toLocaleTimeString()}</small>
+            </div>
+            </div>
+        `);
+        }
+
+        function notifySequenceBlocked() {
+        showAlert(`
+            <div class="alert d-flex bg-secondary-l3 brc-secondary-m2 border-2 radius-1 py-2 px-3 mb-2">
+            <i class="fas fa-lock fa-lg text-secondary me-3 mt-1"></i>
+            <div>
+                <strong class="text-dark-tp3">PIR Detection Diblokir!</strong><br />
+                Sequence motion sedang berlangsung.<br />
+                <small class="text-grey-m2"><i class="far fa-clock"></i> ${new Date().toLocaleTimeString()}</small>
+            </div>
+            </div>
+        `);
+        }
+
+        function notifySequenceComplete() {
+        showAlert(`
+            <div class="alert d-flex bg-success-l3 brc-success-m2 border-2 radius-1 py-2 px-3 mb-2">
+            <i class="fas fa-check-circle fa-lg text-success me-3 mt-1"></i>
+            <div>
+                <strong class="text-dark-tp3">Sequence Selesai!</strong><br />
+                PIR detection diaktifkan kembali.<br />
                 <small class="text-grey-m2"><i class="far fa-clock"></i> ${new Date().toLocaleTimeString()}</small>
             </div>
             </div>
@@ -486,6 +853,15 @@
             toast.setAttribute('aria-atomic', 'true');
             toast.style.minWidth = '300px';
 
+            // Custom colors for sirene notifications
+            if (type === 'danger') {
+                toast.style.backgroundColor = '#dc2626';
+                toast.style.color = 'white';
+            } else if (type === 'secondary') {
+                toast.style.backgroundColor = '#6b7280';
+                toast.style.color = 'white';
+            }
+
             toast.innerHTML = `
                 <div class="d-flex">
                     <div class="toast-body">
@@ -505,8 +881,6 @@
                 setTimeout(() => toast.remove(), 500);
             }, 5000);
         }
-
-
 
         // Initialize MQTT Connection
         function connectMQTT() {
@@ -618,24 +992,18 @@
                     break;
                 case MQTT_CONFIG.topics.motion:
                     handleMotionDetection(payload);
-                    break;
-                case MQTT_CONFIG.topics.sirene:
-                    updateSireneStatus(payload);
-                    break;
-                case MQTT_CONFIG.topics.motion:
-                    handleMotionDetection(payload);
                     notifyDoorOpened();
                     break;
                 case MQTT_CONFIG.topics.sirene:
                     updateSireneStatus(payload);
-                    notifySirene(payload === 'sireneOn' || payload === '1' ? 'on' : 'off');
                     break;
                 case MQTT_CONFIG.topics.camera:
-                    notifyImageCaptured();
+                    // Manual capture - no immediate notification, wait for database confirmation
+                    debugLog('Manual capture triggered');
                     break;
                 case MQTT_CONFIG.topics.database:
-                    notifyImageCaptured(); // show alert
-                    publishMessage(MQTT_CONFIG.topics.activate, "sireneOn"); // trigger sirene
+                    // Check if this image is from motion detection or manual capture
+                    handleImageReceived();
                     break;
             }
         }
@@ -656,12 +1024,32 @@
         function updateSensorStatus(status) {
             const sensorEl = document.getElementById('sensorStatus');
             const sensorText = document.getElementById('sensorText');
+            
+            // Store previous status to detect changes
+            const previousStatus = sensorEl.getAttribute('data-status') || '';
+            sensorEl.setAttribute('data-status', status);
 
             sensorEl.className = 'status-card p-4 h-100';
             
             if (status === 'active' || status === '1' || status === 'on') {
                 sensorEl.classList.add('sensor-active');
                 sensorText.textContent = 'ACTIVE';
+                
+                // If coming from sequence_active, sequence is complete
+                if (previousStatus === 'sequence_active') {
+                    debugLog('Motion detection sequence completed');
+                    notifySequenceComplete();
+                    showAlert('✅ Motion sequence completed - PIR detection re-enabled', 'success', 'fa-check-circle');
+                    // Clear motion flags after sequence completes
+                    sessionStorage.removeItem('motionDetected');
+                    sessionStorage.removeItem('motionDetectedTime');
+                }
+            } else if (status === 'sequence_active') {
+                sensorEl.classList.add('sensor-sequence');
+                sensorText.textContent = 'SEQUENCE RUNNING';
+                debugLog('Motion sequence in progress - PIR detection blocked');
+                notifySequenceBlocked();
+                showAlert('🔒 PIR detection blocked during sequence', 'info', 'fa-lock');
             } else {
                 sensorEl.classList.add('sensor-inactive');
                 sensorText.textContent = 'INACTIVE';
@@ -670,14 +1058,16 @@
 
         function handleMotionDetection(status) {    
             if (status === 'detected' || status === '1' || status === 'true') {
-                const sensorEl = document.getElementById('sensorStatus');
-                const sensorText = document.getElementById('sensorText');
+                debugLog('Motion detection signal received!');
+                notifyMotionSequence();
+                showAlert('🚨 MOTION SEQUENCE: 10 images → 5s delay → 10s siren', 'warning', 'fa-exclamation-triangle');
 
-                sensorEl.className = 'status-card sensor-motion p-4 h-100';
-                sensorText.textContent = 'MOTION DETECTED';
-
-                debugLog('Motion detected!');
-                showAlert('🚪 Pintu Terbuka Terdeteksi oleh Sensor PIR', 'warning', 'fa-door-open');
+                // Mark that motion was detected - this will be used for folder creation
+                sessionStorage.setItem('motionDetected', 'true');
+                sessionStorage.setItem('motionDetectedTime', Date.now().toString());
+                
+                // Signal captured page to create new folder if it's open
+                sessionStorage.setItem('createNewFolder', 'true');
 
                 // Add current date to activity dates
                 const today = new Date().toISOString().split('T')[0];
@@ -687,27 +1077,77 @@
                     saveActivityDates();
                 }
 
-                // Reset after 3 seconds
-                setTimeout(() => {
-                    updateSensorStatus('active');
-                }, 3000);
+                // Note: Sensor status will be updated by RPi via MQTT to 'sequence_active'
+                // No need to manually change sensor status here
+            }
+        }
+
+        function handleImageReceived() {
+            // Check if this image is from recent motion detection
+            const motionDetected = sessionStorage.getItem('motionDetected');
+            const motionTime = sessionStorage.getItem('motionDetectedTime');
+            
+            // Check if this image is from manual capture
+            const manualCapture = sessionStorage.getItem('manualCapture');
+            const manualCaptureTime = sessionStorage.getItem('manualCaptureTime');
+            
+            const currentTime = Date.now();
+            
+            // Extended time window for motion detection (60 seconds to cover full sequence)
+            const isMotionTriggered = motionDetected === 'true' && motionTime && 
+                                    (currentTime - parseInt(motionTime)) < 60000;
+                                    
+            // If manual capture was initiated within last 15 seconds
+            const isManualCapture = manualCapture === 'true' && manualCaptureTime &&
+                                   (currentTime - parseInt(manualCaptureTime)) < 15000;
+            
+            notifyImageCaptured();
+            
+            if (isManualCapture) {
+                // This image is from manual capture - no siren, clear manual flag
+                debugLog('Image from manual capture - no siren activation');
+                sessionStorage.removeItem('manualCapture');
+                sessionStorage.removeItem('manualCaptureTime');
+            } else if (isMotionTriggered) {
+                // This image is from motion detection sequence - siren handled by RPi
+                debugLog('Image from motion detection sequence - siren controlled by RPi');
+                // Don't clear motion flag here as multiple images will come in
+            } else {
+                // Unknown source - default to no siren for safety
+                debugLog('Image from unknown source - no siren activation');
             }
         }
 
         function updateSireneStatus(status) {
             const sireneEl = document.getElementById('sireneStatus');
             const sireneText = document.getElementById('sireneText');
+            const currentTime = Date.now();
+            const lastNotificationTime = parseInt(sireneEl.getAttribute('data-last-notification') || '0');
 
             sireneEl.className = 'status-card p-4 h-100';
             
             if (status === 'active' || status === '1' || status === 'sireneOn') {
-                showAlert('🚨 Sirene AKTIF', 'danger', 'fa-bullhorn');
                 sireneEl.classList.add('sirene-active');
                 sireneText.textContent = 'ACTIVE';
+                
+                // Show notification if status actually changed and not too recent (prevent spam)
+                const previousStatus = sireneEl.getAttribute('data-sirene-status');
+                if (previousStatus !== 'active' && (currentTime - lastNotificationTime) > 1500) {
+                    showAlert('🚨 Sirene AKTIF', 'danger', 'fa-bullhorn');
+                    sireneEl.setAttribute('data-last-notification', currentTime.toString());
+                }
+                sireneEl.setAttribute('data-sirene-status', 'active');
             } else {
-                showAlert('🔇 Sirene NONAKTIF', 'secondary', 'fa-bullhorn');
                 sireneEl.classList.add('sirene-inactive');
                 sireneText.textContent = 'INACTIVE';
+                
+                // Show notification if status actually changed and not too recent (prevent spam)
+                const previousStatus = sireneEl.getAttribute('data-sirene-status');
+                if (previousStatus === 'active' && (currentTime - lastNotificationTime) > 1500) {
+                    showAlert('🔇 Sirene NONAKTIF', 'secondary', 'fa-volume-mute');
+                    sireneEl.setAttribute('data-last-notification', currentTime.toString());
+                }
+                sireneEl.setAttribute('data-sirene-status', 'inactive');
             }
         }
 
@@ -811,36 +1251,28 @@
 
         function saveActivityDates() {
             localStorage.setItem('activityDates', JSON.stringify(activityDates));
+            sessionStorage.setItem('homepageActivityDates', JSON.stringify(activityDates));
         }
 
         function loadActivityDates() {
-            const saved = localStorage.getItem('activityDates');
+            const saved = localStorage.getItem('activityDates') || sessionStorage.getItem('homepageActivityDates');
             if (saved) {
                 activityDates = JSON.parse(saved);
             }
         }
 
-        function logout() {
-            if (confirm('Are you sure you want to logout?')) {
-                window.location.href = "login.html"
-                
-            }
-        }
-
-        // Event Listeners
-        document.addEventListener('DOMContentLoaded', function() {
-            debugLog('Dashboard initialized');
-            loadActivityDates();
-            generateCalendar();
-            
-            // Auto-connect on load
-            setTimeout(connectMQTT, 1000);
-        });
-
         // Control button event listeners
         document.getElementById('btnCapture').addEventListener('click', function() {
+            // Mark this as manual capture to prevent siren activation
+            sessionStorage.setItem('manualCapture', 'true');
+            sessionStorage.setItem('manualCaptureTime', Date.now().toString());
+            
             publishMessage(MQTT_CONFIG.topics.camera, 'capture');
             this.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Capturing...';
+            
+            // Show processing message only
+            debugLog('Manual capture initiated - waiting for database confirmation');
+            
             setTimeout(() => {
                 this.innerHTML = '<i class="fas fa-camera me-2"></i>Capture Image';
             }, 2000);
@@ -857,10 +1289,23 @@
         document.getElementById('btnSireneToggle').addEventListener('click', function() {
             const currentStatus = document.getElementById('sireneText').textContent;
             const newStatus = currentStatus === 'ACTIVE' ? '0' : '1';
+            
             publishMessage(MQTT_CONFIG.topics.activate, newStatus);
         });
-        // Save activity dates periodically
-        setInterval(saveActivityDates, 30000);
+
+        // Save state periodically and before unload
+        setInterval(() => {
+            if (isInitialized) {
+                saveCompletePageState();
+            }
+        }, 10000); // Save every 10 seconds
+
+        window.addEventListener('beforeunload', function() {
+            if (isInitialized) {
+                saveCompletePageState();
+                sessionStorage.setItem('homepageNeedsRestore', 'true');
+            }
+        });
     </script>
 <!-- Floating Toast Container -->
 <div id="toastContainer" style="position: fixed; top: 20px; right: 20px; z-index: 2000;"></div>
