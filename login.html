@@ -26,6 +26,7 @@
       margin-bottom: 10px;
       border: 1px solid #ccc;
       border-radius: 5px;
+      box-sizing: border-box;
     }
     button {
       width: 100%;
@@ -52,16 +53,37 @@
   </div>
 
   <script>
+    // Check if user is already logged in
+    document.addEventListener('DOMContentLoaded', function() {
+      const isLoggedIn = sessionStorage.getItem('isLoggedIn');
+      if (isLoggedIn === 'true') {
+        // User already logged in, redirect without refresh
+        window.location.replace("homepage.html");
+      }
+    });
+
     function login() {
       const username = document.getElementById('username').value;
       const password = document.getElementById('password').value;
 
       if (username === 'semhassinchan' && password === 'abc123') {
-        window.location.href = "homepage.html"; // Redirect ke halaman utama
+        // Set login status
+        sessionStorage.setItem('isLoggedIn', 'true');
+        sessionStorage.setItem('loginTime', Date.now());
+        
+        // Use replace instead of href to avoid back button issues
+        window.location.replace("homepage.html");
       } else {
         document.getElementById('login-message').innerText = 'Username atau password salah';
       }
     }
+
+    // Handle Enter key press
+    document.addEventListener('keypress', function(event) {
+      if (event.key === 'Enter') {
+        login();
+      }
+    });
   </script>
 
 </body>
