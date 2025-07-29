@@ -1,0 +1,658 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Panel | Sinchan Security System</title>
+    
+    <!-- Bootstrap CSS -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Font Awesome -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    
+    <style>
+        :root {
+            --primary-color: #2563eb;
+            --secondary-color: #64748b;
+            --success-color: #16a34a;
+            --danger-color: #dc2626;
+            --warning-color: #d97706;
+            --info-color: #0891b2;
+            --dark-color: #1e293b;
+            --light-color: #f8fafc;
+        }
+
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        .main-container {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            margin: 20px;
+            padding: 30px;
+            min-height: calc(100vh - 40px);
+        }
+
+        .admin-header {
+            background: linear-gradient(135deg, var(--primary-color), var(--dark-color));
+            color: white;
+            padding: 20px;
+            border-radius: 15px;
+            margin-bottom: 30px;
+        }
+
+        .stats-card {
+            background: white;
+            border-radius: 15px;
+            padding: 20px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            transition: transform 0.3s ease;
+        }
+
+        .stats-card:hover {
+            transform: translateY(-5px);
+        }
+
+        .user-table {
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+
+        .table thead th {
+            background: var(--primary-color);
+            color: white;
+            border: none;
+            font-weight: 600;
+        }
+
+        .badge-active {
+            background: var(--success-color);
+        }
+
+        .badge-inactive {
+            background: var(--secondary-color);
+        }
+
+        .btn-action {
+            padding: 5px 10px;
+            font-size: 0.8rem;
+            border-radius: 6px;
+        }
+
+        .modal-header {
+            background: linear-gradient(135deg, var(--primary-color), var(--dark-color));
+            color: white;
+        }
+
+        .form-floating > label {
+            color: var(--secondary-color);
+        }
+
+        .security-log {
+            background: var(--dark-color);
+            color: white;
+            padding: 15px;
+            border-radius: 10px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.85rem;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+
+        .quick-actions {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .system-status {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .status-online {
+            color: var(--success-color);
+        }
+
+        .status-offline {
+            color: var(--danger-color);
+        }
+    </style>
+</head>
+<body>
+    <div class="main-container">
+        <!-- Header -->
+        <div class="admin-header">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h2 class="mb-0">
+                        <i class="fas fa-user-shield me-2"></i>
+                        Super Admin Panel
+                    </h2>
+                    <p class="mb-0 opacity-75">User Management & System Control</p>
+                </div>
+                <div class="text-end">
+                    <div class="small">Logged in as</div>
+                    <div class="fw-bold" id="currentUser">Super Administrator</div>
+                    <button class="btn btn-outline-light btn-sm mt-2" onclick="logout()">
+                        <i class="fas fa-sign-out-alt me-1"></i> Logout
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Quick Actions -->
+        <div class="quick-actions">
+            <div class="row">
+                <div class="col-md-6">
+                    <h5 class="text-black mb-3">
+                        <i class="fas fa-tachometer-alt me-2"></i>
+                        Quick Actions
+                    </h5>
+                    <div class="d-flex gap-2 flex-wrap">
+                        <button class="btn btn-success btn-sm" onclick="showAddUserModal()">
+                            <i class="fas fa-user-plus me-1"></i> Add Admin
+                        </button>
+                        <button class="btn btn-info btn-sm" onclick="refreshUserList()">
+                            <i class="fas fa-sync me-1"></i> Refresh
+                        </button>
+                        <button class="btn btn-warning btn-sm" onclick="exportUsers()">
+                            <i class="fas fa-download me-1"></i> Export
+                        </button>
+                        <button class="btn btn-primary btn-sm" onclick="navigateToHomepage()">
+                            <i class="fas fa-home me-1"></i> Dashboard
+                        </button>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <h5 class="text-black mb-3">
+                        <i class="fas fa-server me-2"></i>
+                        System Status
+                    </h5>
+                    <div class="system-status">
+                        <div class="status-online">
+                            <i class="fas fa-circle"></i> Database Online
+                        </div>
+                        <div class="status-online">
+                            <i class="fas fa-circle"></i> Security System Active
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Statistics Cards -->
+        <div class="row mb-4">
+            <div class="col-md-3 mb-3">
+                <div class="stats-card text-center">
+                    <div class="display-4 text-primary mb-2">
+                        <i class="fas fa-users"></i>
+                    </div>
+                    <h4 class="mb-1" id="totalAdmins">0</h4>
+                    <p class="text-muted mb-0">Total Admins</p>
+                </div>
+            </div>
+            <div class="col-md-3 mb-3">
+                <div class="stats-card text-center">
+                    <div class="display-4 text-success mb-2">
+                        <i class="fas fa-user-check"></i>
+                    </div>
+                    <h4 class="mb-1" id="activeAdmins">0</h4>
+                    <p class="text-muted mb-0">Active Admins</p>
+                </div>
+            </div>
+            <div class="col-md-3 mb-3">
+                <div class="stats-card text-center">
+                    <div class="display-4 text-warning mb-2">
+                        <i class="fas fa-clock"></i>
+                    </div>
+                    <h4 class="mb-1" id="onlineAdmins">0</h4>
+                    <p class="text-muted mb-0">Online Now</p>
+                </div>
+            </div>
+            <div class="col-md-3 mb-3">
+                <div class="stats-card text-center">
+                    <div class="display-4 text-info mb-2">
+                        <i class="fas fa-calendar-day"></i>
+                    </div>
+                    <h4 class="mb-1" id="todayLogins">0</h4>
+                    <p class="text-muted mb-0">Today's Logins</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- User Management Table -->
+        <div class="user-table">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead>
+                        <tr>
+                            <th>Username</th>
+                            <th>Full Name</th>
+                            <th>Status</th>
+                            <th>Created</th>
+                            <th>Last Login</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="userTableBody">
+                        <!-- User rows will be populated here -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Security Log -->
+        <div class="mt-4">
+            <h5 class="mb-3">
+                <i class="fas fa-shield-alt me-2"></i>
+                Security Activity Log
+            </h5>
+            <div class="security-log" id="securityLog">
+                [INFO] Super Admin panel initialized<br>
+                [INFO] User management system loaded<br>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add/Edit User Modal -->
+    <div class="modal fade" id="userModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="modalTitle">
+                        <i class="fas fa-user-plus me-2"></i>
+                        Add New Admin
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="userForm">
+                        <div class="form-floating mb-3">
+                            <input type="text" class="form-control" id="modalUsername" placeholder="Username" required>
+                            <label for="modalUsername">Username</label>
+                        </div>
+                        <div class="form-floating mb-3">
+                            <input type="text" class="form-control" id="modalFullName" placeholder="Full Name" required>
+                            <label for="modalFullName">Full Name</label>
+                        </div>
+                        <div class="form-floating mb-3">
+                            <input type="password" class="form-control" id="modalPassword" placeholder="Password" required>
+                            <label for="modalPassword">Password</label>
+                        </div>
+                        <div class="form-floating mb-3">
+                            <input type="password" class="form-control" id="modalConfirmPassword" placeholder="Confirm Password" required>
+                            <label for="modalConfirmPassword">Confirm Password</label>
+                        </div>
+                        <div class="form-check mb-3">
+                            <input class="form-check-input" type="checkbox" id="modalActive" checked>
+                            <label class="form-check-label" for="modalActive">
+                                Active Account
+                            </label>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary" onclick="saveUser()">
+                        <i class="fas fa-save me-1"></i>
+                        Save User
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Confirm Delete Modal -->
+    <div class="modal fade" id="deleteModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header bg-danger text-white">
+                    <h5 class="modal-title">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        Confirm Delete
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <p>Are you sure you want to delete the user <strong id="deleteUsername"></strong>?</p>
+                    <p class="text-danger">This action cannot be undone.</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-danger" onclick="confirmDelete()">
+                        <i class="fas fa-trash me-1"></i>
+                        Delete User
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
+
+    <script>
+        let adminUsers = {};
+        let currentEditingUser = null;
+        let userToDelete = null;
+
+        // Check authentication on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            checkAuthentication();
+            loadAdminUsers();
+            updateStatistics();
+            updateUserTable();
+            setInterval(updateStatistics, 30000); // Update stats every 30 seconds
+        });
+
+        function checkAuthentication() {
+            const isLoggedIn = sessionStorage.getItem('isLoggedIn');
+            const userRole = sessionStorage.getItem('userRole');
+            
+            if (isLoggedIn !== 'true' || userRole !== 'superadmin') {
+                window.location.replace("login.html");
+                return;
+            }
+
+            // Update current user display
+            const fullName = sessionStorage.getItem('fullName') || 'Super Administrator';
+            document.getElementById('currentUser').textContent = fullName;
+        }
+
+        function loadAdminUsers() {
+            adminUsers = JSON.parse(localStorage.getItem('adminUsers') || '{}');
+            
+            // Initialize with default admin if none exists
+            if (Object.keys(adminUsers).length === 0) {
+                adminUsers = {
+                    'admin1': {
+                        username: 'admin1',
+                        password: 'admin123',
+                        role: 'admin',
+                        fullName: 'Default Administrator',
+                        createdBy: 'superadmin',
+                        createdAt: new Date().toISOString(),
+                        lastLogin: null,
+                        active: true
+                    }
+                };
+                localStorage.setItem('adminUsers', JSON.stringify(adminUsers));
+            }
+        }
+
+        function updateStatistics() {
+            const totalAdmins = Object.keys(adminUsers).length;
+            const activeAdmins = Object.values(adminUsers).filter(user => user.active).length;
+            
+            // Calculate online admins (logged in within last 30 minutes)
+            const thirtyMinutesAgo = Date.now() - (30 * 60 * 1000);
+            const onlineAdmins = Object.values(adminUsers).filter(user => 
+                user.lastLogin && new Date(user.lastLogin).getTime() > thirtyMinutesAgo
+            ).length;
+
+            // Calculate today's logins
+            const today = new Date().toDateString();
+            const todayLogins = Object.values(adminUsers).filter(user => 
+                user.lastLogin && new Date(user.lastLogin).toDateString() === today
+            ).length;
+
+            document.getElementById('totalAdmins').textContent = totalAdmins;
+            document.getElementById('activeAdmins').textContent = activeAdmins;
+            document.getElementById('onlineAdmins').textContent = onlineAdmins;
+            document.getElementById('todayLogins').textContent = todayLogins;
+        }
+
+        function updateUserTable() {
+            const tbody = document.getElementById('userTableBody');
+            tbody.innerHTML = '';
+
+            Object.values(adminUsers).forEach(user => {
+                const row = document.createElement('tr');
+                
+                const statusBadge = user.active ? 
+                    '<span class="badge badge-active">Active</span>' : 
+                    '<span class="badge badge-inactive">Inactive</span>';
+
+                const lastLogin = user.lastLogin ? 
+                    new Date(user.lastLogin).toLocaleString() : 
+                    'Never';
+
+                const createdAt = new Date(user.createdAt).toLocaleDateString();
+
+                row.innerHTML = `
+                    <td><strong>${user.username}</strong></td>
+                    <td>${user.fullName}</td>
+                    <td>${statusBadge}</td>
+                    <td>${createdAt}</td>
+                    <td>${lastLogin}</td>
+                    <td>
+                        <button class="btn btn-primary btn-action me-1" onclick="editUser('${user.username}')" title="Edit">
+                            <i class="fas fa-edit"></i>
+                        </button>
+                        <button class="btn btn-warning btn-action me-1" onclick="toggleUserStatus('${user.username}')" title="${user.active ? 'Deactivate' : 'Activate'}">
+                            <i class="fas fa-${user.active ? 'user-slash' : 'user-check'}"></i>
+                        </button>
+                        <button class="btn btn-danger btn-action" onclick="deleteUser('${user.username}')" title="Delete">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </td>
+                `;
+                
+                tbody.appendChild(row);
+            });
+        }
+
+        function showAddUserModal() {
+            currentEditingUser = null;
+            document.getElementById('modalTitle').innerHTML = '<i class="fas fa-user-plus me-2"></i>Add New Admin';
+            document.getElementById('userForm').reset();
+            document.getElementById('modalActive').checked = true;
+            
+            const modal = new bootstrap.Modal(document.getElementById('userModal'));
+            modal.show();
+        }
+
+        function editUser(username) {
+            currentEditingUser = username;
+            const user = adminUsers[username];
+            
+            document.getElementById('modalTitle').innerHTML = '<i class="fas fa-user-edit me-2"></i>Edit Admin';
+            document.getElementById('modalUsername').value = user.username;
+            document.getElementById('modalFullName').value = user.fullName;
+            document.getElementById('modalPassword').value = user.password;
+            document.getElementById('modalConfirmPassword').value = user.password;
+            document.getElementById('modalActive').checked = user.active;
+            
+            const modal = new bootstrap.Modal(document.getElementById('userModal'));
+            modal.show();
+        }
+
+        function saveUser() {
+            const username = document.getElementById('modalUsername').value.trim();
+            const fullName = document.getElementById('modalFullName').value.trim();
+            const password = document.getElementById('modalPassword').value;
+            const confirmPassword = document.getElementById('modalConfirmPassword').value;
+            const active = document.getElementById('modalActive').checked;
+
+            // Validation
+            if (!username || !fullName || !password) {
+                alert('Please fill in all required fields');
+                return;
+            }
+
+            if (username.length < 3) {
+                alert('Username must be at least 3 characters long');
+                return;
+            }
+
+            if (password.length < 6) {
+                alert('Password must be at least 6 characters long');
+                return;
+            }
+
+            if (password !== confirmPassword) {
+                alert('Passwords do not match');
+                return;
+            }
+
+            // Check if username already exists (for new users)
+            if (!currentEditingUser && adminUsers[username]) {
+                alert('Username already exists');
+                return;
+            }
+
+            // Save user
+            const userData = {
+                username: username,
+                password: password,
+                role: 'admin',
+                fullName: fullName,
+                active: active,
+                createdBy: 'superadmin',
+                createdAt: currentEditingUser ? adminUsers[currentEditingUser].createdAt : new Date().toISOString(),
+                lastLogin: currentEditingUser ? adminUsers[currentEditingUser].lastLogin : null
+            };
+
+            if (currentEditingUser && currentEditingUser !== username) {
+                // Username changed, delete old entry
+                delete adminUsers[currentEditingUser];
+            }
+
+            adminUsers[username] = userData;
+            localStorage.setItem('adminUsers', JSON.stringify(adminUsers));
+
+            // Log the action
+            const action = currentEditingUser ? 'modified' : 'created';
+            logSecurityEvent(`Admin user '${username}' ${action}`);
+
+            // Close modal and refresh table
+            bootstrap.Modal.getInstance(document.getElementById('userModal')).hide();
+            updateUserTable();
+            updateStatistics();
+
+            alert(`User ${username} ${action} successfully`);
+        }
+
+        function toggleUserStatus(username) {
+            const user = adminUsers[username];
+            user.active = !user.active;
+            
+            localStorage.setItem('adminUsers', JSON.stringify(adminUsers));
+            
+            const status = user.active ? 'activated' : 'deactivated';
+            logSecurityEvent(`Admin user '${username}' ${status}`);
+            
+            updateUserTable();
+            updateStatistics();
+        }
+
+        function deleteUser(username) {
+            userToDelete = username;
+            document.getElementById('deleteUsername').textContent = username;
+            
+            const modal = new bootstrap.Modal(document.getElementById('deleteModal'));
+            modal.show();
+        }
+
+        function confirmDelete() {
+            if (userToDelete) {
+                delete adminUsers[userToDelete];
+                localStorage.setItem('adminUsers', JSON.stringify(adminUsers));
+                
+                logSecurityEvent(`Admin user '${userToDelete}' deleted`);
+                
+                bootstrap.Modal.getInstance(document.getElementById('deleteModal')).hide();
+                updateUserTable();
+                updateStatistics();
+                
+                userToDelete = null;
+            }
+        }
+
+        function refreshUserList() {
+            loadAdminUsers();
+            updateUserTable();
+            updateStatistics();
+            logSecurityEvent('User list refreshed');
+        }
+
+        function exportUsers() {
+            const exportData = {
+                exported_at: new Date().toISOString(),
+                exported_by: 'superadmin',
+                users: Object.values(adminUsers).map(user => ({
+                    username: user.username,
+                    fullName: user.fullName,
+                    active: user.active,
+                    createdAt: user.createdAt,
+                    lastLogin: user.lastLogin
+                }))
+            };
+
+            const dataStr = JSON.stringify(exportData, null, 2);
+            const dataBlob = new Blob([dataStr], {type: 'application/json'});
+            
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(dataBlob);
+            link.download = `admin_users_export_${new Date().toISOString().split('T')[0]}.json`;
+            link.click();
+            
+            logSecurityEvent('User data exported');
+        }
+
+        function navigateToHomepage() {
+            // Save navigation state
+            sessionStorage.setItem('navigatingFromPage', 'admin-panel');
+            sessionStorage.setItem('skipInitialization', 'true');
+            
+            window.location.href = "homepage.html";
+        }
+
+        function logout() {
+            if (confirm('Are you sure you want to logout?')) {
+                logSecurityEvent('Super admin logged out');
+                sessionStorage.clear();
+                window.location.replace("login.html");
+            }
+        }
+
+        function logSecurityEvent(message) {
+            const timestamp = new Date().toLocaleTimeString();
+            const logEl = document.getElementById('securityLog');
+            logEl.innerHTML += `[${timestamp}] ${message}<br>`;
+            logEl.scrollTop = logEl.scrollHeight;
+        }
+
+        // Security measures
+        document.addEventListener('contextmenu', function(e) {
+            e.preventDefault();
+        });
+
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'F12' || (e.ctrlKey && e.shiftKey && e.key === 'I')) {
+                e.preventDefault();
+            }
+        });
+
+        // Auto-refresh user data from localStorage (in case another tab modified it)
+        window.addEventListener('storage', function(e) {
+            if (e.key === 'adminUsers') {
+                loadAdminUsers();
+                updateUserTable();
+                updateStatistics();
+                logSecurityEvent('User data synchronized from external change');
+            }
+        });
+    </script>
+</body>
+</html>
