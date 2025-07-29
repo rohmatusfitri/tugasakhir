@@ -302,6 +302,24 @@
         .loading-overlay.show {
             display: flex;
         }
+
+        /* User info badge */
+        .user-info {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            padding: 8px 12px;
+            font-size: 0.85rem;
+        }
+
+        .user-role {
+            background: var(--primary-color);
+            color: white;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            margin-left: 8px;
+        }
     </style>
 </head>
 <body>
@@ -332,13 +350,24 @@
                 <p class="text-muted mb-0">Real-time monitoring dashboard</p>
             </div>
             <div class="text-end">
+                <div class="user-info mb-2">
+                    <i class="fas fa-user me-1"></i>
+                    <span id="currentUserName">Loading...</span>
+                    <span class="user-role" id="userRole">Admin</span>
+                </div>
                 <div id="lastUpdate" class="text-muted small">
                     Last update: Never
                 </div>
-                <button class="btn btn-outline-secondary btn-sm mt-1" onclick="logout()">
-                    <i class="fas fa-sign-out-alt me-1"></i>
-                    Logout
-                </button>
+                <div class="mt-2">
+                    <button class="btn btn-outline-primary btn-sm me-1" id="adminPanelBtn" onclick="navigateToAdminPanel()" style="display: none;">
+                        <i class="fas fa-user-shield me-1"></i>
+                        Admin Panel
+                    </button>
+                    <button class="btn btn-outline-secondary btn-sm" onclick="logout()">
+                        <i class="fas fa-sign-out-alt me-1"></i>
+                        Logout
+                    </button>
+                </div>
             </div>
         </div>
         
@@ -496,6 +525,44 @@
         let reconnectAttempts = 0;
         const maxReconnectAttempts = 5;
 
+        // Enhanced Authentication Check
+        function checkAuthentication() {
+            const isLoggedIn = sessionStorage.getItem('isLoggedIn');
+            const userRole = sessionStorage.getItem('userRole');
+            const username = sessionStorage.getItem('username');
+            const fullName = sessionStorage.getItem('fullName');
+
+            // Check if user is logged in
+            if (isLoggedIn !== 'true') {
+                window.location.replace("login.html");
+                return false;
+            }
+
+            // For admin users, verify they still exist and are active
+            if (userRole === 'admin') {
+                const adminUsers = JSON.parse(localStorage.getItem('adminUsers') || '{}');
+                const currentUser = adminUsers[username];
+                
+                if (!currentUser || !currentUser.active) {
+                    alert('Your account has been deactivated. Please contact the administrator.');
+                    sessionStorage.clear();
+                    window.location.replace("login.html");
+                    return false;
+                }
+            }
+
+            // Update UI with user information
+            document.getElementById('currentUserName').textContent = fullName || username || 'User';
+            document.getElementById('userRole').textContent = userRole === 'superadmin' ? 'Super Admin' : 'Admin';
+
+            // Show admin panel button for super admin
+            if (userRole === 'superadmin') {
+                document.getElementById('adminPanelBtn').style.display = 'inline-block';
+            }
+
+            return true;
+        }
+
         // Check if returning from another page
         function checkNavigationState() {
             const navigatingFrom = sessionStorage.getItem('navigatingFromPage');
@@ -533,10 +600,8 @@
 
         // Session Management - Check login status
         document.addEventListener('DOMContentLoaded', function() {
-            // Check login first
-            const isLoggedIn = sessionStorage.getItem('isLoggedIn');
-            if (isLoggedIn !== 'true') {
-                window.location.replace("login.html");
+            // Check authentication first
+            if (!checkAuthentication()) {
                 return;
             }
             
@@ -723,6 +788,27 @@
             window.location.href = "captured.html";
         }
 
+        function navigateToAdminPanel() {
+            const userRole = sessionStorage.getItem('userRole');
+            
+            if (userRole !== 'superadmin') {
+                alert('Access denied. Super Admin privileges required.');
+                return;
+            }
+
+            debugLog('Navigating to admin panel, saving state...');
+            
+            // Save complete current state
+            saveCompletePageState();
+            
+            // Set navigation flags
+            sessionStorage.setItem('navigatingFromPage', 'homepage');
+            sessionStorage.setItem('skipInitialization', 'true');
+            
+            // Navigate
+            window.location.href = "admin-panel.html";
+        }
+
         function logout() {
             if (confirm('Are you sure you want to logout?')) {
                 // Clear all session data
@@ -773,7 +859,7 @@
             <i class="fas fa-exclamation-triangle fa-lg text-warning me-3 mt-1"></i>
             <div>
                 <strong class="text-dark-tp3">Motion Sequence Dimulai!</strong><br />
-                10 gambar (3s interval) → 5s delay → 10s sirene<br />
+                2 gambar → sirene 10s → 8 gambar → sirene 10s<br />
                 <small class="text-grey-m2"><i class="far fa-clock"></i> ${new Date().toLocaleTimeString()}</small>
             </div>
             </div>
@@ -938,7 +1024,7 @@
             // Subscribe to topics
             Object.values(MQTT_CONFIG.topics).forEach(topic => {
                 try {
-                    mqttClient.subscribe(topic);
+                    mqttClient.subscribe(topic, {qos: 2});
                     debugLog('Subscribed to: ' + topic);
                 } catch (error) {
                     debugLog('Failed to subscribe to ' + topic + ': ' + error.message);
@@ -1039,7 +1125,7 @@
                 if (previousStatus === 'sequence_active') {
                     debugLog('Motion detection sequence completed');
                     notifySequenceComplete();
-                    showAlert('✅ Motion sequence completed - PIR detection re-enabled', 'success', 'fa-check-circle');
+                    showAlert('Motion sequence completed - PIR detection re-enabled', 'success', 'fa-check-circle');
                     // Clear motion flags after sequence completes
                     sessionStorage.removeItem('motionDetected');
                     sessionStorage.removeItem('motionDetectedTime');
@@ -1049,7 +1135,7 @@
                 sensorText.textContent = 'SEQUENCE RUNNING';
                 debugLog('Motion sequence in progress - PIR detection blocked');
                 notifySequenceBlocked();
-                showAlert('🔒 PIR detection blocked during sequence', 'info', 'fa-lock');
+                showAlert('PIR detection blocked during sequence', 'info', 'fa-lock');
             } else {
                 sensorEl.classList.add('sensor-inactive');
                 sensorText.textContent = 'INACTIVE';
@@ -1060,7 +1146,7 @@
             if (status === 'detected' || status === '1' || status === 'true') {
                 debugLog('Motion detection signal received!');
                 notifyMotionSequence();
-                showAlert('🚨 MOTION SEQUENCE: 10 images → 5s delay → 10s siren', 'warning', 'fa-exclamation-triangle');
+                showAlert('MOTION SEQUENCE: 2 images → sirene → 8 images → sirene', 'warning', 'fa-exclamation-triangle');
 
                 // Mark that motion was detected - this will be used for folder creation
                 sessionStorage.setItem('motionDetected', 'true');
@@ -1133,7 +1219,7 @@
                 // Show notification if status actually changed and not too recent (prevent spam)
                 const previousStatus = sireneEl.getAttribute('data-sirene-status');
                 if (previousStatus !== 'active' && (currentTime - lastNotificationTime) > 1500) {
-                    showAlert('🚨 Sirene AKTIF', 'danger', 'fa-bullhorn');
+                    showAlert('Sirene AKTIF', 'danger', 'fa-bullhorn');
                     sireneEl.setAttribute('data-last-notification', currentTime.toString());
                 }
                 sireneEl.setAttribute('data-sirene-status', 'active');
@@ -1144,7 +1230,7 @@
                 // Show notification if status actually changed and not too recent (prevent spam)
                 const previousStatus = sireneEl.getAttribute('data-sirene-status');
                 if (previousStatus === 'active' && (currentTime - lastNotificationTime) > 1500) {
-                    showAlert('🔇 Sirene NONAKTIF', 'secondary', 'fa-volume-mute');
+                    showAlert('Sirene NONAKTIF', 'secondary', 'fa-volume-mute');
                     sireneEl.setAttribute('data-last-notification', currentTime.toString());
                 }
                 sireneEl.setAttribute('data-sirene-status', 'inactive');
@@ -1158,13 +1244,14 @@
         }
 
         // Control Functions
-        function publishMessage(topic, message) {
+        function publishMessage(topic, message, qosLevel = 2) {
             if (mqttClient && mqttClient.isConnected()) {
                 try {
                     const mqttMessage = new Paho.MQTT.Message(message);
                     mqttMessage.destinationName = topic;
+                    mqttMessage.qos = qosLevel;  // <== Set QoS level di sini
                     mqttClient.send(mqttMessage);
-                    debugLog(`Message sent: ${topic} = ${message}`);
+                    debugLog(`Message sent: ${topic} = ${message} (QoS ${qosLevel})`);
                 } catch (error) {
                     debugLog('Failed to send message: ' + error.message);
                 }
@@ -1267,7 +1354,7 @@
             sessionStorage.setItem('manualCapture', 'true');
             sessionStorage.setItem('manualCaptureTime', Date.now().toString());
             
-            publishMessage(MQTT_CONFIG.topics.camera, 'capture');
+            publishMessage(MQTT_CONFIG.topics.camera, 'capture', 2);
             this.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Capturing...';
             
             // Show processing message only
@@ -1279,18 +1366,18 @@
         });
 
         document.getElementById('btnSensorOn').addEventListener('click', function() {
-            publishMessage(MQTT_CONFIG.topics.sensor, 'sensorOn');
+            publishMessage(MQTT_CONFIG.topics.sensor, 'sensorOn', 2);
         });
 
         document.getElementById('btnSensorOff').addEventListener('click', function() {
-            publishMessage(MQTT_CONFIG.topics.sensor, 'sensorOff');
+            publishMessage(MQTT_CONFIG.topics.sensor, 'sensorOff', 2);
         });
 
         document.getElementById('btnSireneToggle').addEventListener('click', function() {
             const currentStatus = document.getElementById('sireneText').textContent;
             const newStatus = currentStatus === 'ACTIVE' ? '0' : '1';
             
-            publishMessage(MQTT_CONFIG.topics.activate, newStatus);
+            publishMessage(MQTT_CONFIG.topics.activate, newStatus, 2);
         });
 
         // Save state periodically and before unload
@@ -1306,6 +1393,25 @@
                 sessionStorage.setItem('homepageNeedsRestore', 'true');
             }
         });
+
+        // Security measures - prevent unauthorized access
+        window.addEventListener('storage', function(e) {
+            // If admin users are updated and current user is admin, recheck authentication
+            if (e.key === 'adminUsers') {
+                const userRole = sessionStorage.getItem('userRole');
+                if (userRole === 'admin') {
+                    checkAuthentication();
+                }
+            }
+        });
+
+        // Periodic authentication check for admin users
+        setInterval(() => {
+            const userRole = sessionStorage.getItem('userRole');
+            if (userRole === 'admin') {
+                checkAuthentication();
+            }
+        }, 60000); // Check every minute
     </script>
 <!-- Floating Toast Container -->
 <div id="toastContainer" style="position: fixed; top: 20px; right: 20px; z-index: 2000;"></div>
