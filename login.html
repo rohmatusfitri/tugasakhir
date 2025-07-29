@@ -3,88 +3,603 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Login | Sistem Keamanan BTS</title>
-  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+  <title>Login | Sinchan Security System</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
   <style>
-    body {
-      background: linear-gradient(to bottom right, #e3f2fd, #bbdefb);
-      font-family: 'Roboto', sans-serif;
+    :root {
+      --primary-color: #2563eb;
+      --primary-dark: #1d4ed8;
+      --secondary-color: #64748b;
+      --success-color: #16a34a;
+      --danger-color: #dc2626;
+      --warning-color: #d97706;
+      --dark-color: #1e293b;
+      --light-color: #f8fafc;
+      --border-color: #e2e8f0;
+      --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+      --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+    }
+
+    * {
       margin: 0;
       padding: 0;
-    }
-    .login-container {
-      max-width: 400px;
-      margin: 100px auto;
-      padding: 20px;
-      background: white;
-      border-radius: 10px;
-      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-    }
-    input[type="text"], input[type="password"] {
-      padding: 10px;
-      width: 100%;
-      margin-bottom: 10px;
-      border: 1px solid #ccc;
-      border-radius: 5px;
       box-sizing: border-box;
     }
-    button {
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+
+    .login-container {
+      background: white;
+      border-radius: 20px;
+      box-shadow: var(--shadow-lg);
+      overflow: hidden;
       width: 100%;
-      padding: 10px;
-      background-color: #1565c0;
+      max-width: 420px;
+      position: relative;
+    }
+
+    .login-header {
+      background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
+      color: white;
+      padding: 40px 30px;
+      text-align: center;
+      position: relative;
+    }
+
+    .login-header::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><pattern id="grid" width="10" height="10" patternUnits="userSpaceOnUse"><path d="M 10 0 L 0 0 0 10" fill="none" stroke="rgba(255,255,255,0.1)" stroke-width="0.5"/></pattern></defs><rect width="100" height="100" fill="url(%23grid)"/></svg>');
+      opacity: 0.3;
+    }
+
+    .login-header h1 {
+      font-size: 1.75rem;
+      font-weight: 700;
+      margin-bottom: 8px;
+      position: relative;
+      z-index: 1;
+    }
+
+    .login-header p {
+      font-size: 0.95rem;
+      opacity: 0.9;
+      position: relative;
+      z-index: 1;
+    }
+
+    .login-form {
+      padding: 40px 30px;
+    }
+
+    .form-group {
+      margin-bottom: 24px;
+      position: relative;
+    }
+
+    .form-label {
+      display: block;
+      font-size: 0.875rem;
+      font-weight: 500;
+      color: var(--dark-color);
+      margin-bottom: 8px;
+    }
+
+    .form-input {
+      width: 100%;
+      padding: 14px 16px;
+      border: 2px solid var(--border-color);
+      border-radius: 12px;
+      font-size: 1rem;
+      transition: all 0.3s ease;
+      background: white;
+    }
+
+    .form-input:focus {
+      outline: none;
+      border-color: var(--primary-color);
+      box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+    }
+
+    .form-input.error {
+      border-color: var(--danger-color);
+      box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.1);
+    }
+
+    .input-icon {
+      position: absolute;
+      right: 16px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--secondary-color);
+      cursor: pointer;
+      transition: color 0.3s ease;
+    }
+
+    .input-icon:hover {
+      color: var(--primary-color);
+    }
+
+    .login-button {
+      width: 100%;
+      padding: 16px;
+      background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
       color: white;
       border: none;
-      border-radius: 5px;
-      font-weight: bold;
+      border-radius: 12px;
+      font-size: 1rem;
+      font-weight: 600;
       cursor: pointer;
+      transition: all 0.3s ease;
+      position: relative;
+      overflow: hidden;
     }
-    button:hover {
-      background-color: #0d47a1;
+
+    .login-button:hover {
+      transform: translateY(-2px);
+      box-shadow: var(--shadow-lg);
+    }
+
+    .login-button:active {
+      transform: translateY(0);
+    }
+
+    .login-button:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .login-button .spinner {
+      display: none;
+      width: 20px;
+      height: 20px;
+      border: 2px solid transparent;
+      border-top: 2px solid white;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin-right: 8px;
+    }
+
+    .login-button.loading .spinner {
+      display: inline-block;
+    }
+
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+
+    .error-message {
+      background: rgba(220, 38, 38, 0.1);
+      color: var(--danger-color);
+      padding: 12px 16px;
+      border-radius: 8px;
+      font-size: 0.875rem;
+      margin-top: 16px;
+      border-left: 4px solid var(--danger-color);
+      display: none;
+    }
+
+    .error-message.show {
+      display: block;
+      animation: slideIn 0.3s ease;
+    }
+
+    @keyframes slideIn {
+      from {
+        opacity: 0;
+        transform: translateY(-10px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .user-type-selector {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 24px;
+    }
+
+    .user-type-option {
+      flex: 1;
+      padding: 12px;
+      border: 2px solid var(--border-color);
+      border-radius: 8px;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      font-size: 0.875rem;
+      font-weight: 500;
+    }
+
+    .user-type-option:hover {
+      border-color: var(--primary-color);
+      background: rgba(37, 99, 235, 0.05);
+    }
+
+    .user-type-option.active {
+      border-color: var(--primary-color);
+      background: var(--primary-color);
+      color: white;
+    }
+
+    .forgot-password {
+      text-align: center;
+      margin-top: 20px;
+    }
+
+    .forgot-password a {
+      color: var(--primary-color);
+      text-decoration: none;
+      font-size: 0.875rem;
+      font-weight: 500;
+    }
+
+    .forgot-password a:hover {
+      text-decoration: underline;
+    }
+
+    .version-info {
+      position: absolute;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      color: rgba(255, 255, 255, 0.7);
+      font-size: 0.75rem;
+    }
+
+    @media (max-width: 480px) {
+      .login-container {
+        margin: 0 10px;
+      }
+      
+      .login-header {
+        padding: 30px 20px;
+      }
+      
+      .login-form {
+        padding: 30px 20px;
+      }
     }
   </style>
 </head>
 <body>
   <div class="login-container">
-    <h2>Login Sistem Keamanan</h2>
-    <input type="text" id="username" placeholder="Username" />
-    <input type="password" id="password" placeholder="Password" />
-    <button onclick="login()">Masuk</button>
-    <p id="login-message" style="color:red;"></p>
+    <div class="login-header">
+      <h1><i class="fas fa-shield-alt"></i> Sinchan Security</h1>
+      <p>Professional Security Management System</p>
+    </div>
+    
+    <div class="login-form">
+      <div class="user-type-selector">
+        <div class="user-type-option active" data-type="admin">
+          <i class="fas fa-user"></i> Admin
+        </div>
+        <div class="user-type-option" data-type="superadmin">
+          <i class="fas fa-user-shield"></i> Super Admin
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="username">Username</label>
+        <input type="text" id="username" class="form-input" placeholder="Enter your username" autocomplete="username">
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="password">Password</label>
+        <div style="position: relative;">
+          <input type="password" id="password" class="form-input" placeholder="Enter your password" autocomplete="current-password">
+          <i class="fas fa-eye input-icon" id="togglePassword"></i>
+        </div>
+      </div>
+
+      <button type="button" class="login-button" id="loginButton">
+        <div class="spinner"></div>
+        <span>Sign In</span>
+      </button>
+
+      <div class="error-message" id="errorMessage">
+        <i class="fas fa-exclamation-circle"></i>
+        <span id="errorText"></span>
+      </div>
+
+      <div class="forgot-password">
+        <a href="#" id="forgotPasswordLink">Need help accessing your account?</a>
+      </div>
+    </div>
+  </div>
+
+  <div class="version-info">
+    v2.1 - Enhanced Security System
   </div>
 
   <script>
+    // User management data (in production, this should be in a secure database)
+    let userData = {
+      superadmin: {
+        username: 'superadmin',
+        password: 'super123admin',
+        role: 'superadmin',
+        fullName: 'Super Administrator',
+        lastLogin: null
+      },
+      admins: JSON.parse(localStorage.getItem('adminUsers') || '{}')
+    };
+
+    // Initialize with default admin if none exists
+    if (Object.keys(userData.admins).length === 0) {
+      userData.admins = {
+        'admin1': {
+          username: 'admin1',
+          password: 'admin123',
+          role: 'admin',
+          fullName: 'Administrator',
+          createdBy: 'superadmin',
+          createdAt: new Date().toISOString(),
+          lastLogin: null,
+          active: true
+        }
+      };
+      localStorage.setItem('adminUsers', JSON.stringify(userData.admins));
+    }
+
+    let currentUserType = 'admin';
+    let loginAttempts = 0;
+    const maxLoginAttempts = 5;
+    const lockoutDuration = 15 * 60 * 1000; // 15 minutes
+
+    // DOM elements
+    const userTypeOptions = document.querySelectorAll('.user-type-option');
+    const usernameInput = document.getElementById('username');
+    const passwordInput = document.getElementById('password');
+    const togglePassword = document.getElementById('togglePassword');
+    const loginButton = document.getElementById('loginButton');
+    const errorMessage = document.getElementById('errorMessage');
+    const errorText = document.getElementById('errorText');
+    const forgotPasswordLink = document.getElementById('forgotPasswordLink');
+
     // Check if user is already logged in
     document.addEventListener('DOMContentLoaded', function() {
-      const isLoggedIn = sessionStorage.getItem('isLoggedIn');
-      if (isLoggedIn === 'true') {
-        // User already logged in, redirect without refresh
-        window.location.replace("homepage.html");
-      }
+      checkExistingSession();
+      setupEventListeners();
+      checkLockoutStatus();
     });
 
-    function login() {
-      const username = document.getElementById('username').value;
-      const password = document.getElementById('password').value;
-
-      if (username === 'semhassinchan' && password === 'abc123') {
-        // Set login status
-        sessionStorage.setItem('isLoggedIn', 'true');
-        sessionStorage.setItem('loginTime', Date.now());
-        
-        // Use replace instead of href to avoid back button issues
-        window.location.replace("homepage.html");
-      } else {
-        document.getElementById('login-message').innerText = 'Username atau password salah';
+    function checkExistingSession() {
+      const isLoggedIn = sessionStorage.getItem('isLoggedIn');
+      const userRole = sessionStorage.getItem('userRole');
+      
+      if (isLoggedIn === 'true') {
+        if (userRole === 'superadmin') {
+          window.location.replace("admin-panel.html");
+        } else {
+          window.location.replace("homepage.html");
+        }
       }
     }
 
-    // Handle Enter key press
-    document.addEventListener('keypress', function(event) {
-      if (event.key === 'Enter') {
-        login();
+    function setupEventListeners() {
+      // User type selection
+      userTypeOptions.forEach(option => {
+        option.addEventListener('click', function() {
+          userTypeOptions.forEach(opt => opt.classList.remove('active'));
+          this.classList.add('active');
+          currentUserType = this.dataset.type;
+          clearError();
+          
+          // Update placeholder text
+          if (currentUserType === 'superadmin') {
+            usernameInput.placeholder = 'Super admin username';
+            passwordInput.placeholder = 'Super admin password';
+          } else {
+            usernameInput.placeholder = 'Admin username';
+            passwordInput.placeholder = 'Admin password';
+          }
+        });
+      });
+
+      // Password visibility toggle
+      togglePassword.addEventListener('click', function() {
+        const type = passwordInput.getAttribute('type') === 'password' ? 'text' : 'password';
+        passwordInput.setAttribute('type', type);
+        this.classList.toggle('fa-eye');
+        this.classList.toggle('fa-eye-slash');
+      });
+
+      // Enter key press
+      document.addEventListener('keypress', function(event) {
+        if (event.key === 'Enter') {
+          login();
+        }
+      });
+
+      // Login button
+      loginButton.addEventListener('click', login);
+
+      // Input validation
+      usernameInput.addEventListener('input', clearError);
+      passwordInput.addEventListener('input', clearError);
+
+      // Forgot password
+      forgotPasswordLink.addEventListener('click', function(e) {
+        e.preventDefault();
+        showForgotPasswordDialog();
+      });
+    }
+
+    function checkLockoutStatus() {
+      const lockoutUntil = localStorage.getItem('lockoutUntil');
+      if (lockoutUntil && new Date().getTime() < parseInt(lockoutUntil)) {
+        const remainingTime = Math.ceil((parseInt(lockoutUntil) - new Date().getTime()) / 60000);
+        showError(`Account locked due to multiple failed attempts. Try again in ${remainingTime} minutes.`);
+        loginButton.disabled = true;
+        return true;
+      }
+      return false;
+    }
+
+    function login() {
+      if (checkLockoutStatus()) return;
+
+      const username = usernameInput.value.trim();
+      const password = passwordInput.value;
+
+      // Validation
+      if (!username || !password) {
+        showError('Please enter both username and password');
+        return;
+      }
+
+      // Show loading state
+      setLoadingState(true);
+
+      // Simulate network delay for better UX
+      setTimeout(() => {
+        const loginResult = authenticateUser(username, password, currentUserType);
+        
+        if (loginResult.success) {
+          // Reset login attempts
+          loginAttempts = 0;
+          localStorage.removeItem('lockoutUntil');
+          
+          // Set session data
+          sessionStorage.setItem('isLoggedIn', 'true');
+          sessionStorage.setItem('userRole', loginResult.user.role);
+          sessionStorage.setItem('username', loginResult.user.username);
+          sessionStorage.setItem('fullName', loginResult.user.fullName);
+          sessionStorage.setItem('loginTime', Date.now());
+
+          // Update last login
+          updateLastLogin(username, currentUserType);
+
+          // Redirect based on role
+          if (loginResult.user.role === 'superadmin') {
+            window.location.replace("admin-panel.html");
+          } else {
+            window.location.replace("homepage.html");
+          }
+        } else {
+          loginAttempts++;
+          
+          if (loginAttempts >= maxLoginAttempts) {
+            const lockoutUntil = new Date().getTime() + lockoutDuration;
+            localStorage.setItem('lockoutUntil', lockoutUntil.toString());
+            showError('Too many failed attempts. Account locked for 15 minutes.');
+            loginButton.disabled = true;
+          } else {
+            const remainingAttempts = maxLoginAttempts - loginAttempts;
+            showError(`${loginResult.message} (${remainingAttempts} attempts remaining)`);
+          }
+        }
+        
+        setLoadingState(false);
+      }, 1000);
+    }
+
+    function authenticateUser(username, password, userType) {
+      if (userType === 'superadmin') {
+        if (username === userData.superadmin.username && password === userData.superadmin.password) {
+          return {
+            success: true,
+            user: userData.superadmin
+          };
+        }
+      } else {
+        const admin = userData.admins[username];
+        if (admin && admin.password === password && admin.active) {
+          return {
+            success: true,
+            user: admin
+          };
+        } else if (admin && !admin.active) {
+          return {
+            success: false,
+            message: 'Account has been deactivated'
+          };
+        }
+      }
+      
+      return {
+        success: false,
+        message: 'Invalid username or password'
+      };
+    }
+
+    function updateLastLogin(username, userType) {
+      const loginTime = new Date().toISOString();
+      
+      if (userType === 'superadmin') {
+        userData.superadmin.lastLogin = loginTime;
+      } else {
+        userData.admins[username].lastLogin = loginTime;
+        localStorage.setItem('adminUsers', JSON.stringify(userData.admins));
+      }
+    }
+
+    function setLoadingState(loading) {
+      if (loading) {
+        loginButton.classList.add('loading');
+        loginButton.disabled = true;
+      } else {
+        loginButton.classList.remove('loading');
+        loginButton.disabled = false;
+      }
+    }
+
+    function showError(message) {
+      errorText.textContent = message;
+      errorMessage.classList.add('show');
+      usernameInput.classList.add('error');
+      passwordInput.classList.add('error');
+    }
+
+    function clearError() {
+      errorMessage.classList.remove('show');
+      usernameInput.classList.remove('error');
+      passwordInput.classList.remove('error');
+    }
+
+    function showForgotPasswordDialog() {
+      if (currentUserType === 'superadmin') {
+        alert('Super Admin password cannot be reset through this interface. Please contact system administrator.');
+      } else {
+        alert('Please contact your Super Administrator to reset your password.');
+      }
+    }
+
+    // Security: Clear sensitive data on page unload
+    window.addEventListener('beforeunload', function() {
+      // Clear any temporary data
+      passwordInput.value = '';
+    });
+
+    // Prevent right-click context menu (basic security)
+    document.addEventListener('contextmenu', function(e) {
+      e.preventDefault();
+    });
+
+    // Prevent F12 developer tools (basic security)
+    document.addEventListener('keydown', function(e) {
+      if (e.key === 'F12' || (e.ctrlKey && e.shiftKey && e.key === 'I')) {
+        e.preventDefault();
       }
     });
   </script>
-
 </body>
 </html>
