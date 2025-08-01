@@ -203,6 +203,17 @@
             text-decoration: none;
         }
 
+        .control-button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .control-button:disabled:hover {
+            transform: none;
+            box-shadow: none;
+        }
+
         .calendar-has-activity {
             background: linear-gradient(135deg, #3b82f6, #2563eb) !important;
             color: white !important;
@@ -319,6 +330,55 @@
             font-size: 0.75rem;
             font-weight: 600;
             margin-left: 8px;
+        }
+
+        /* Role-based access indicators */
+        .restricted-control {
+            position: relative;
+        }
+
+        .restricted-control::after {
+            content: '';
+            position: absolute;
+            top: -2px;
+            right: -2px;
+            width: 12px;
+            height: 12px;
+            background: var(--danger-color);
+            border-radius: 50%;
+            border: 2px solid white;
+        }
+
+        .access-denied-tooltip {
+            position: absolute;
+            bottom: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            background: var(--danger-color);
+            color: white;
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-size: 0.75rem;
+            white-space: nowrap;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s ease;
+            z-index: 1000;
+        }
+
+        .access-denied-tooltip::after {
+            content: '';
+            position: absolute;
+            top: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            border: 5px solid transparent;
+            border-top-color: var(--danger-color);
+        }
+
+        .restricted-control:hover .access-denied-tooltip {
+            opacity: 1;
+            visibility: visible;
         }
     </style>
 </head>
@@ -437,26 +497,57 @@
         <div class="row mb-4">
             <div class="col-12">
                 <div class="d-flex justify-content-center flex-wrap gap-3">
+                    <!-- Always available buttons -->
                     <button id="btnCapture" class="control-button btn btn-primary">
                         <i class="fas fa-camera me-2"></i>
                         Capture Image
                     </button>
-                    <button id="btnSensorOn" class="control-button btn btn-success">
-                        <i class="fas fa-play me-2"></i>
-                        Sensor ON
-                    </button>
-                    <button id="btnSensorOff" class="control-button btn btn-secondary">
-                        <i class="fas fa-stop me-2"></i>
-                        Sensor OFF
-                    </button>
-                    <button id="btnSireneToggle" class="control-button btn btn-warning">
-                        <i class="fas fa-volume-up me-2"></i>
-                        Toggle Siren
-                    </button>
-                     <button class="control-button btn btn-info" onclick="navigateToGallery()">
+                    
+                    <button class="control-button btn btn-info" onclick="navigateToGallery()">
                         <i class="fas fa-images me-2"></i>
                         Lihat Galeri Gambar
                     </button>
+
+                    <!-- Super Admin only buttons -->
+                    <div id="superAdminControls" style="display: none;">
+                        <button id="btnSensorOn" class="control-button btn btn-success">
+                            <i class="fas fa-play me-2"></i>
+                            Sensor ON
+                        </button>
+                        <button id="btnSensorOff" class="control-button btn btn-secondary">
+                            <i class="fas fa-stop me-2"></i>
+                            Sensor OFF
+                        </button>
+                        <button id="btnSireneToggle" class="control-button btn btn-warning">
+                            <i class="fas fa-volume-up me-2"></i>
+                            Toggle Siren
+                        </button>
+                    </div>
+
+                    <!-- Restricted access indicators for regular admins -->
+                    <div id="restrictedControls" style="display: none;">
+                        <div class="restricted-control d-inline-block">
+                            <button class="control-button btn btn-success" disabled>
+                                <i class="fas fa-play me-2"></i>
+                                Sensor ON
+                            </button>
+                            <div class="access-denied-tooltip">Super Admin Only</div>
+                        </div>
+                        <div class="restricted-control d-inline-block">
+                            <button class="control-button btn btn-secondary" disabled>
+                                <i class="fas fa-stop me-2"></i>
+                                Sensor OFF
+                            </button>
+                            <div class="access-denied-tooltip">Super Admin Only</div>
+                        </div>
+                        <div class="restricted-control d-inline-block">
+                            <button class="control-button btn btn-warning" disabled>
+                                <i class="fas fa-volume-up me-2"></i>
+                                Toggle Siren
+                            </button>
+                            <div class="access-denied-tooltip">Super Admin Only</div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -504,6 +595,7 @@
     <script>
         // Global state management
         let isInitialized = false;
+        let currentUserRole = 'admin'; // Will be updated on authentication
         let MQTT_CONFIG = {
             host: '',
             port: '',
@@ -525,7 +617,7 @@
         let reconnectAttempts = 0;
         const maxReconnectAttempts = 5;
 
-        // Enhanced Authentication Check
+        // Enhanced Authentication Check with Role-Based Access Control
         function checkAuthentication() {
             const isLoggedIn = sessionStorage.getItem('isLoggedIn');
             const userRole = sessionStorage.getItem('userRole');
@@ -537,6 +629,9 @@
                 window.location.replace("login.html");
                 return false;
             }
+
+            // Update current user role
+            currentUserRole = userRole;
 
             // For admin users, verify they still exist and are active
             if (userRole === 'admin') {
@@ -555,12 +650,33 @@
             document.getElementById('currentUserName').textContent = fullName || username || 'User';
             document.getElementById('userRole').textContent = userRole === 'superadmin' ? 'Super Admin' : 'Admin';
 
-            // Show admin panel button for super admin
-            if (userRole === 'superadmin') {
-                document.getElementById('adminPanelBtn').style.display = 'inline-block';
-            }
+            // Configure role-based access
+            configureRoleBasedAccess(userRole);
 
             return true;
+        }
+
+        // Configure access based on user role
+        function configureRoleBasedAccess(userRole) {
+            const superAdminControls = document.getElementById('superAdminControls');
+            const restrictedControls = document.getElementById('restrictedControls');
+            const adminPanelBtn = document.getElementById('adminPanelBtn');
+
+            if (userRole === 'superadmin') {
+                // Super Admin: Show all controls and admin panel button
+                superAdminControls.style.display = 'block';
+                restrictedControls.style.display = 'none';
+                adminPanelBtn.style.display = 'inline-block';
+                
+                debugLog('Super Admin access granted - Full system control enabled');
+            } else {
+                // Regular Admin: Hide sensitive controls, show restricted indicators
+                superAdminControls.style.display = 'none';
+                restrictedControls.style.display = 'block';
+                adminPanelBtn.style.display = 'none';
+                
+                debugLog('Regular Admin access - Restricted control mode enabled');
+            }
         }
 
         // Check if returning from another page
@@ -640,11 +756,68 @@
             sireneEl.setAttribute('data-sirene-status', 'unknown'); // Use 'unknown' to allow first notification
             sireneEl.setAttribute('data-last-notification', '0');
             
+            // Setup role-based event listeners
+            setupControlEventListeners();
+            
             // Auto-connect MQTT
             setTimeout(connectMQTT, 1000);
             
             isInitialized = true;
             debugLog('Homepage initialization complete');
+        }
+
+        // Setup control event listeners based on user role
+        function setupControlEventListeners() {
+            // Always available: Capture button
+            document.getElementById('btnCapture').addEventListener('click', function() {
+                // Mark this as manual capture to prevent siren activation
+                sessionStorage.setItem('manualCapture', 'true');
+                sessionStorage.setItem('manualCaptureTime', Date.now().toString());
+                
+                publishMessage(MQTT_CONFIG.topics.camera, 'capture', 2);
+                this.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Capturing...';
+                
+                // Show processing message only
+                debugLog('Manual capture initiated - waiting for database confirmation');
+                
+                setTimeout(() => {
+                    this.innerHTML = '<i class="fas fa-camera me-2"></i>Capture Image';
+                }, 2000);
+            });
+
+            // Super Admin only controls
+            if (currentUserRole === 'superadmin') {
+                const btnSensorOn = document.getElementById('btnSensorOn');
+                const btnSensorOff = document.getElementById('btnSensorOff');
+                const btnSireneToggle = document.getElementById('btnSireneToggle');
+
+                if (btnSensorOn) {
+                    btnSensorOn.addEventListener('click', function() {
+                        publishMessage(MQTT_CONFIG.topics.sensor, 'sensorOn', 2);
+                        debugLog('Sensor ON command sent (Super Admin)');
+                    });
+                }
+
+                if (btnSensorOff) {
+                    btnSensorOff.addEventListener('click', function() {
+                        publishMessage(MQTT_CONFIG.topics.sensor, 'sensorOff', 2);
+                        debugLog('Sensor OFF command sent (Super Admin)');
+                    });
+                }
+
+                if (btnSireneToggle) {
+                    btnSireneToggle.addEventListener('click', function() {
+                        const currentStatus = document.getElementById('sireneText').textContent;
+                        const newStatus = currentStatus === 'ACTIVE' ? '0' : '1';
+                        
+                        publishMessage(MQTT_CONFIG.topics.activate, newStatus, 2);
+                        debugLog(`Sirene toggle command sent: ${newStatus} (Super Admin)`);
+                    });
+                }
+            } else {
+                // For regular admins, show access denied messages when they try to interact
+                debugLog('Sensor and sirene controls restricted for regular admin');
+            }
         }
 
         function restoreCompletePageState() {
@@ -793,6 +966,7 @@
             
             if (userRole !== 'superadmin') {
                 alert('Access denied. Super Admin privileges required.');
+                debugLog('Admin panel access denied - insufficient privileges');
                 return;
             }
 
@@ -811,6 +985,7 @@
 
         function logout() {
             if (confirm('Are you sure you want to logout?')) {
+                debugLog(`User ${currentUserRole} logging out`);
                 // Clear all session data
                 sessionStorage.clear();
                 window.location.replace("login.html");
@@ -819,22 +994,22 @@
 
         // ====== ALERT NOTIFICATION SYSTEM ======
         function showAlert(html) {
-        const container = document.getElementById('debugLog');
-        container.innerHTML += html;
-        container.scrollTop = container.scrollHeight;
+            const container = document.getElementById('debugLog');
+            container.innerHTML += html;
+            container.scrollTop = container.scrollHeight;
         }
 
         function notifyDoorOpened() {
-        showAlert(`
-            <div class="alert d-flex bg-warning-l2 brc-warning-m3 border-2 radius-1 py-2 px-3 mb-2">
-            <i class="fas fa-door-open fa-lg text-warning me-3 mt-1"></i>
-            <div>
-                <strong class="text-dark-tp3">Pintu Terbuka!</strong><br />
-                Deteksi gerakan oleh sensor PIR.<br />
-                <small class="text-grey-m2"><i class="far fa-clock"></i> ${new Date().toLocaleTimeString()}</small>
-            </div>
-            </div>
-        `);
+            showAlert(`
+                <div class="alert d-flex bg-warning-l2 brc-warning-m3 border-2 radius-1 py-2 px-3 mb-2">
+                <i class="fas fa-door-open fa-lg text-warning me-3 mt-1"></i>
+                <div>
+                    <strong class="text-dark-tp3">Pintu Terbuka!</strong><br />
+                    Deteksi gerakan oleh sensor PIR.<br />
+                    <small class="text-grey-m2"><i class="far fa-clock"></i> ${new Date().toLocaleTimeString()}</small>
+                </div>
+                </div>
+            `);
         }
 
         function notifyImageCaptured(captureType = 'manual') {
@@ -854,67 +1029,68 @@
         }
 
         function notifyMotionSequence() {
-        showAlert(`
-            <div class="alert d-flex bg-warning-l2 brc-warning-m3 border-2 radius-1 py-2 px-3 mb-2">
-            <i class="fas fa-exclamation-triangle fa-lg text-warning me-3 mt-1"></i>
-            <div>
-                <strong class="text-dark-tp3">Motion Sequence Dimulai!</strong><br />
-                2 gambar → sirene 10s → 8 gambar → sirene 10s<br />
-                <small class="text-grey-m2"><i class="far fa-clock"></i> ${new Date().toLocaleTimeString()}</small>
-            </div>
-            </div>
-        `);
+            showAlert(`
+                <div class="alert d-flex bg-warning-l2 brc-warning-m3 border-2 radius-1 py-2 px-3 mb-2">
+                <i class="fas fa-exclamation-triangle fa-lg text-warning me-3 mt-1"></i>
+                <div>
+                    <strong class="text-dark-tp3">Motion Sequence Dimulai!</strong><br />
+                    2 gambar → sirene 10s → 8 gambar → sirene 10s<br />
+                    <small class="text-grey-m2"><i class="far fa-clock"></i> ${new Date().toLocaleTimeString()}</small>
+                </div>
+                </div>
+            `);
         }
 
         function notifySequenceBlocked() {
-        showAlert(`
-            <div class="alert d-flex bg-secondary-l3 brc-secondary-m2 border-2 radius-1 py-2 px-3 mb-2">
-            <i class="fas fa-lock fa-lg text-secondary me-3 mt-1"></i>
-            <div>
-                <strong class="text-dark-tp3">PIR Detection Diblokir!</strong><br />
-                Sequence motion sedang berlangsung.<br />
-                <small class="text-grey-m2"><i class="far fa-clock"></i> ${new Date().toLocaleTimeString()}</small>
-            </div>
-            </div>
-        `);
+            showAlert(`
+                <div class="alert d-flex bg-secondary-l3 brc-secondary-m2 border-2 radius-1 py-2 px-3 mb-2">
+                <i class="fas fa-lock fa-lg text-secondary me-3 mt-1"></i>
+                <div>
+                    <strong class="text-dark-tp3">PIR Detection Diblokir!</strong><br />
+                    Sequence motion sedang berlangsung.<br />
+                    <small class="text-grey-m2"><i class="far fa-clock"></i> ${new Date().toLocaleTimeString()}</small>
+                </div>
+                </div>
+            `);
         }
 
         function notifySequenceComplete() {
-        showAlert(`
-            <div class="alert d-flex bg-success-l3 brc-success-m2 border-2 radius-1 py-2 px-3 mb-2">
-            <i class="fas fa-check-circle fa-lg text-success me-3 mt-1"></i>
-            <div>
-                <strong class="text-dark-tp3">Sequence Selesai!</strong><br />
-                PIR detection diaktifkan kembali.<br />
-                <small class="text-grey-m2"><i class="far fa-clock"></i> ${new Date().toLocaleTimeString()}</small>
-            </div>
-            </div>
-        `);
+            showAlert(`
+                <div class="alert d-flex bg-success-l3 brc-success-m2 border-2 radius-1 py-2 px-3 mb-2">
+                <i class="fas fa-check-circle fa-lg text-success me-3 mt-1"></i>
+                <div>
+                    <strong class="text-dark-tp3">Sequence Selesai!</strong><br />
+                    PIR detection diaktifkan kembali.<br />
+                    <small class="text-grey-m2"><i class="far fa-clock"></i> ${new Date().toLocaleTimeString()}</small>
+                </div>
+                </div>
+            `);
         }
 
         function notifySirene(status) {
-        const label = status === 'sireneOn' ? 'Sirene Aktif!' : 'Sirene Nonaktif';
-        const tone = status === 'sireneOn' ? 'danger' : 'secondary';
-        const icon = status === 'sireneOn' ? 'fa-volume-up' : 'fa-volume-mute';
-        showAlert(`
-            <div class="alert d-flex bgc-${tone}-l3 brc-${tone}-m2 border-2 radius-1 py-2 px-3 mb-2">
-            <i class="fas ${icon} fa-lg text-${tone} me-3 mt-1"></i>
-            <div>
-                <strong class="text-dark-tp3">${label}</strong><br />
-                Sirene ${status === 'sireneOn' ? 'dinyalakan' : 'dimatikan'} oleh sistem.<br />
-                <small class="text-grey-m2"><i class="far fa-clock"></i> ${new Date().toLocaleTimeString()}</small>
-            </div>
-            </div>
-        `);
+            const label = status === 'sireneOn' ? 'Sirene Aktif!' : 'Sirene Nonaktif';
+            const tone = status === 'sireneOn' ? 'danger' : 'secondary';
+            const icon = status === 'sireneOn' ? 'fa-volume-up' : 'fa-volume-mute';
+            showAlert(`
+                <div class="alert d-flex bgc-${tone}-l3 brc-${tone}-m2 border-2 radius-1 py-2 px-3 mb-2">
+                <i class="fas ${icon} fa-lg text-${tone} me-3 mt-1"></i>
+                <div>
+                    <strong class="text-dark-tp3">${label}</strong><br />
+                    Sirene ${status === 'sireneOn' ? 'dinyalakan' : 'dimatikan'} oleh sistem.<br />
+                    <small class="text-grey-m2"><i class="far fa-clock"></i> ${new Date().toLocaleTimeString()}</small>
+                </div>
+                </div>
+            `);
         }
 
-        // Debug logging
+        // Debug logging with role information
         function debugLog(message) {
             const logEl = document.getElementById('debugLog');
             const timestamp = new Date().toLocaleTimeString();
-            logEl.innerHTML += `[${timestamp}] ${message}<br>`;
+            const rolePrefix = currentUserRole === 'superadmin' ? '[SUPER]' : '[ADMIN]';
+            logEl.innerHTML += `[${timestamp}] ${rolePrefix} ${message}<br>`;
             logEl.scrollTop = logEl.scrollHeight;
-            console.log(message);
+            console.log(`${rolePrefix} ${message}`);
         }
 
         // Update MQTT config from form
@@ -1243,13 +1419,13 @@
             document.getElementById('lastUpdate').textContent = `Last update: ${timeString}`;
         }
 
-        // Control Functions
+        // Control Functions with Role-Based Restrictions
         function publishMessage(topic, message, qosLevel = 2) {
             if (mqttClient && mqttClient.isConnected()) {
                 try {
                     const mqttMessage = new Paho.MQTT.Message(message);
                     mqttMessage.destinationName = topic;
-                    mqttMessage.qos = qosLevel;  // <== Set QoS level di sini
+                    mqttMessage.qos = qosLevel;
                     mqttClient.send(mqttMessage);
                     debugLog(`Message sent: ${topic} = ${message} (QoS ${qosLevel})`);
                 } catch (error) {
@@ -1348,38 +1524,6 @@
             }
         }
 
-        // Control button event listeners
-        document.getElementById('btnCapture').addEventListener('click', function() {
-            // Mark this as manual capture to prevent siren activation
-            sessionStorage.setItem('manualCapture', 'true');
-            sessionStorage.setItem('manualCaptureTime', Date.now().toString());
-            
-            publishMessage(MQTT_CONFIG.topics.camera, 'capture', 2);
-            this.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Capturing...';
-            
-            // Show processing message only
-            debugLog('Manual capture initiated - waiting for database confirmation');
-            
-            setTimeout(() => {
-                this.innerHTML = '<i class="fas fa-camera me-2"></i>Capture Image';
-            }, 2000);
-        });
-
-        document.getElementById('btnSensorOn').addEventListener('click', function() {
-            publishMessage(MQTT_CONFIG.topics.sensor, 'sensorOn', 2);
-        });
-
-        document.getElementById('btnSensorOff').addEventListener('click', function() {
-            publishMessage(MQTT_CONFIG.topics.sensor, 'sensorOff', 2);
-        });
-
-        document.getElementById('btnSireneToggle').addEventListener('click', function() {
-            const currentStatus = document.getElementById('sireneText').textContent;
-            const newStatus = currentStatus === 'ACTIVE' ? '0' : '1';
-            
-            publishMessage(MQTT_CONFIG.topics.activate, newStatus, 2);
-        });
-
         // Save state periodically and before unload
         setInterval(() => {
             if (isInitialized) {
@@ -1412,7 +1556,280 @@
                 checkAuthentication();
             }
         }, 60000); // Check every minute
+
+        // Access Control Functions
+        function checkSuperAdminAccess(action) {
+            if (currentUserRole !== 'superadmin') {
+                debugLog(`Access denied: ${action} requires Super Admin privileges`);
+                showAlert('Access denied. Super Admin privileges required.', 'danger', 'fa-lock');
+                return false;
+            }
+            return true;
+        }
+
+        // Enhanced control functions with access control
+        function activateSensor() {
+            if (!checkSuperAdminAccess('Sensor activation')) return;
+            publishMessage(MQTT_CONFIG.topics.sensor, 'sensorOn', 2);
+            debugLog('Sensor activation command sent by Super Admin');
+        }
+
+        function deactivateSensor() {
+            if (!checkSuperAdminAccess('Sensor deactivation')) return;
+            publishMessage(MQTT_CONFIG.topics.sensor, 'sensorOff', 2);
+            debugLog('Sensor deactivation command sent by Super Admin');
+        }
+
+        function toggleSiren() {
+            if (!checkSuperAdminAccess('Siren control')) return;
+            const currentStatus = document.getElementById('sireneText').textContent;
+            const newStatus = currentStatus === 'ACTIVE' ? '0' : '1';
+            publishMessage(MQTT_CONFIG.topics.activate, newStatus, 2);
+            debugLog(`Siren toggle command sent by Super Admin: ${newStatus}`);
+        }
+
+        // Role-based UI updates
+        function updateUIForRole() {
+            const roleElement = document.getElementById('userRole');
+            const userNameElement = document.getElementById('currentUserName');
+            
+            if (currentUserRole === 'superadmin') {
+                roleElement.style.background = 'linear-gradient(135deg, #dc2626, #b91c1c)';
+                roleElement.innerHTML = '<i class="fas fa-crown me-1"></i>Super Admin';
+            } else {
+                roleElement.style.background = 'var(--primary-color)';
+                roleElement.innerHTML = '<i class="fas fa-user me-1"></i>Admin';
+            }
+            
+            debugLog(`UI updated for ${currentUserRole} role`);
+        }
+
+        // Initialize role-based UI after authentication
+        function initializeRoleBasedUI() {
+            updateUIForRole();
+            
+            // Add role-specific styling
+            if (currentUserRole === 'admin') {
+                // Add subtle indicator for restricted access
+                const restrictedElements = document.querySelectorAll('.restricted-control');
+                restrictedElements.forEach(el => {
+                    el.style.position = 'relative';
+                });
+            }
+        }
+
+        // Enhanced authentication with role-based initialization
+        function enhancedCheckAuthentication() {
+            if (!checkAuthentication()) return false;
+            
+            // Initialize role-based features
+            initializeRoleBasedUI();
+            
+            return true;
+        }
+
+        // Override the original checkAuthentication in initialization
+        document.addEventListener('DOMContentLoaded', function() {
+            // Check authentication first with enhanced features
+            if (!enhancedCheckAuthentication()) {
+                return;
+            }
+            
+            // Check if returning from navigation
+            if (checkNavigationState()) {
+                return; // Skip normal initialization
+            }
+            
+            // Normal initialization
+            initializeHomepage();
+        });
+
+        // Security logging for access attempts
+        function logSecurityEvent(event, details = '') {
+            const timestamp = new Date().toISOString();
+            const userInfo = `${sessionStorage.getItem('username')} (${currentUserRole})`;
+            const logEntry = `[SECURITY] ${timestamp} - ${userInfo}: ${event} ${details}`;
+            
+            console.log(logEntry);
+            debugLog(`Security Event: ${event} ${details}`);
+            
+            // In production, this should be sent to a security monitoring system
+        }
+
+        // Enhanced logout with security logging
+        function secureLogout() {
+            logSecurityEvent('User logout initiated');
+            
+            if (confirm('Are you sure you want to logout?')) {
+                logSecurityEvent('User logout confirmed');
+                debugLog(`User ${currentUserRole} logging out`);
+                
+                // Clear all session data
+                sessionStorage.clear();
+                
+                // Clear any temporary MQTT connections
+                if (mqttClient && mqttClient.isConnected()) {
+                    try {
+                        mqttClient.disconnect();
+                        debugLog('MQTT connection closed on logout');
+                    } catch (error) {
+                        debugLog('Error closing MQTT connection: ' + error.message);
+                    }
+                }
+                
+                window.location.replace("login.html");
+            } else {
+                logSecurityEvent('User logout cancelled');
+            }
+        }
+
+        // Override logout function
+        function logout() {
+            secureLogout();
+        }
+
+        // Add keyboard shortcuts for Super Admin (optional feature)
+        document.addEventListener('keydown', function(e) {
+            // Only for Super Admin and when Ctrl+Alt is pressed
+            if (currentUserRole === 'superadmin' && e.ctrlKey && e.altKey) {
+                switch(e.key) {
+                    case '1':
+                        e.preventDefault();
+                        activateSensor();
+                        break;
+                    case '2':
+                        e.preventDefault();
+                        deactivateSensor();
+                        break;
+                    case '3':
+                        e.preventDefault();
+                        toggleSiren();
+                        break;
+                    case 'c':
+                        e.preventDefault();
+                        document.getElementById('btnCapture').click();
+                        break;
+                }
+            }
+        });
+
+        // Role-based help system
+        function showHelp() {
+            let helpMessage = `
+                <div class="help-content">
+                    <h5><i class="fas fa-question-circle me-2"></i>System Help</h5>
+                    <div class="mb-3">
+                        <h6>Available Features:</h6>
+                        <ul>
+                            <li><i class="fas fa-camera text-primary"></i> Image Capture - Take manual photos</li>
+                            <li><i class="fas fa-images text-info"></i> Gallery - View captured images</li>
+                            <li><i class="fas fa-calendar text-success"></i> Activity Calendar - Monitor activity dates</li>
+                            <li><i class="fas fa-wifi text-warning"></i> MQTT Connection - Real-time communication</li>
+                        </ul>
+                    </div>
+            `;
+            
+            if (currentUserRole === 'superadmin') {
+                helpMessage += `
+                    <div class="mb-3">
+                        <h6 class="text-danger">Super Admin Features:</h6>
+                        <ul>
+                            <li><i class="fas fa-play text-success"></i> Sensor Control - Enable/disable motion detection</li>
+                            <li><i class="fas fa-volume-up text-warning"></i> Siren Control - Manual siren activation</li>
+                            <li><i class="fas fa-user-shield text-primary"></i> Admin Panel - User management</li>
+                        </ul>
+                        <div class="small text-muted">
+                            <strong>Keyboard Shortcuts:</strong> Ctrl+Alt+1 (Sensor On), Ctrl+Alt+2 (Sensor Off), Ctrl+Alt+3 (Toggle Siren), Ctrl+Alt+C (Capture)
+                        </div>
+                    </div>
+                `;
+            } else {
+                helpMessage += `
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle me-2"></i>
+                        <strong>Note:</strong> Sensor and siren controls require Super Admin privileges.
+                        Contact your administrator for elevated access.
+                    </div>
+                `;
+            }
+            
+            helpMessage += `</div>`;
+            
+            // Create and show help modal (you can implement this with Bootstrap modal)
+            alert(helpMessage.replace(/<[^>]*>/g, '')); // Simple alert for now
+        }
+
+        // Add help button functionality (if you want to add a help button)
+        function addHelpButton() {
+            const headerDiv = document.querySelector('.d-flex.justify-content-between.align-items-center.mb-4 .text-end');
+            if (headerDiv) {
+                const helpBtn = document.createElement('button');
+                helpBtn.className = 'btn btn-outline-info btn-sm me-1';
+                helpBtn.innerHTML = '<i class="fas fa-question-circle me-1"></i>Help';
+                helpBtn.onclick = showHelp;
+                
+                // Insert before logout button
+                const logoutBtn = headerDiv.querySelector('button[onclick="logout()"]');
+                if (logoutBtn) {
+                    headerDiv.insertBefore(helpBtn, logoutBtn);
+                }
+            }
+        }
+
+        // Initialize help button after page load
+        setTimeout(addHelpButton, 1000);
+
+        // Enhanced error handling
+        window.addEventListener('error', function(e) {
+            debugLog(`JavaScript Error: ${e.message} at ${e.filename}:${e.lineno}`);
+            logSecurityEvent('JavaScript error occurred', e.message);
+        });
+
+        // Connection monitoring
+        let connectionCheckInterval;
+
+        function startConnectionMonitoring() {
+            connectionCheckInterval = setInterval(() => {
+                if (mqttClient && mqttClient.isConnected()) {
+                    // Connection is healthy
+                    updateConnectionStatus(true);
+                } else {
+                    // Connection lost
+                    updateConnectionStatus(false);
+                    debugLog('Connection check failed - attempting reconnection');
+                    connectMQTT();
+                }
+            }, 30000); // Check every 30 seconds
+        }
+
+        function stopConnectionMonitoring() {
+            if (connectionCheckInterval) {
+                clearInterval(connectionCheckInterval);
+                connectionCheckInterval = null;
+            }
+        }
+
+        // Start monitoring after successful initialization
+        setTimeout(() => {
+            if (isInitialized) {
+                startConnectionMonitoring();
+                debugLog('Connection monitoring started');
+            }
+        }, 5000);
+
+        // Clean up on page unload
+        window.addEventListener('beforeunload', function() {
+            stopConnectionMonitoring();
+            if (mqttClient && mqttClient.isConnected()) {
+                try {
+                    mqttClient.disconnect();
+                } catch (error) {
+                    console.log('Error disconnecting MQTT on unload:', error);
+                }
+            }
+        });
     </script>
+
 <!-- Floating Toast Container -->
 <div id="toastContainer" style="position: fixed; top: 20px; right: 20px; z-index: 2000;"></div>
 
