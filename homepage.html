@@ -380,6 +380,44 @@
             opacity: 1;
             visibility: visible;
         }
+
+        /* Notification permission panel */
+        .notification-panel {
+            background: rgba(255, 193, 7, 0.1);
+            border: 1px solid rgba(255, 193, 7, 0.3);
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 20px;
+            display: none;
+        }
+
+        .notification-panel.show {
+            display: block;
+        }
+
+        .notification-status {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            margin-left: 8px;
+        }
+
+        .notification-granted {
+            background: #16a34a;
+            color: white;
+        }
+
+        .notification-denied {
+            background: #dc2626;
+            color: white;
+        }
+
+        .notification-default {
+            background: #d97706;
+            color: white;
+        }
     </style>
 </head>
 <body>
@@ -426,6 +464,29 @@
                     <button class="btn btn-outline-secondary btn-sm" onclick="logout()">
                         <i class="fas fa-sign-out-alt me-1"></i>
                         Logout
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Desktop Notification Panel -->
+        <div class="notification-panel" id="notificationPanel">
+            <div class="d-flex align-items-center justify-content-between">
+                <div>
+                    <h6 class="mb-1">
+                        <i class="fas fa-bell me-2"></i>
+                        Desktop Notifications
+                        <span class="notification-status" id="notificationStatus">Unknown</span>
+                    </h6>
+                    <p class="mb-0 small">Enable desktop notifications to receive alerts even when you're in other tabs or applications</p>
+                </div>
+                <div>
+                    <button class="btn btn-warning btn-sm" id="enableNotificationsBtn" onclick="requestNotificationPermission()">
+                        <i class="fas fa-bell me-1"></i>
+                        Enable Notifications
+                    </button>
+                    <button class="btn btn-outline-secondary btn-sm ms-1" onclick="hideNotificationPanel()">
+                        <i class="fas fa-times"></i>
                     </button>
                 </div>
             </div>
@@ -596,6 +657,7 @@
         // Global state management
         let isInitialized = false;
         let currentUserRole = 'admin'; // Will be updated on authentication
+        let notificationPermission = 'default';
         let MQTT_CONFIG = {
             host: '',
             port: '',
@@ -616,6 +678,301 @@
         let activityDates = [];
         let reconnectAttempts = 0;
         const maxReconnectAttempts = 5;
+
+        // ====== DESKTOP NOTIFICATION SYSTEM ======
+        
+        // Check and initialize notification permission
+        function checkNotificationSupport() {
+            if (!("Notification" in window)) {
+                debugLog("This browser does not support desktop notifications");
+                return false;
+            }
+            
+            notificationPermission = Notification.permission;
+            updateNotificationUI();
+            
+            // Show notification panel if permission is default (not granted/denied)
+            if (notificationPermission === 'default') {
+                showNotificationPanel();
+            }
+            
+            debugLog(`Notification permission: ${notificationPermission}`);
+            return true;
+        }
+
+        // Request notification permission
+        function requestNotificationPermission() {
+            if (!("Notification" in window)) {
+                alert("Browser tidak mendukung desktop notifications");
+                return;
+            }
+
+            if (Notification.permission === 'granted') {
+                showDesktopNotification('Notifications Enabled!', 'You will now receive desktop notifications from Sinchan Security System', 'success');
+                hideNotificationPanel();
+                return;
+            }
+
+            if (Notification.permission !== 'denied') {
+                Notification.requestPermission().then(function(permission) {
+                    notificationPermission = permission;
+                    updateNotificationUI();
+                    
+                    if (permission === 'granted') {
+                        showDesktopNotification(
+                            'Notifications Enabled!', 
+                            'You will now receive desktop notifications from Sinchan Security System',
+                            'success'
+                        );
+                        hideNotificationPanel();
+                        debugLog('Desktop notifications enabled successfully');
+                    } else if (permission === 'denied') {
+                        alert('Notifications have been blocked. Please enable them in your browser settings to receive alerts.');
+                        debugLog('Desktop notifications denied by user');
+                    }
+                });
+            } else {
+                alert('Notifications are blocked. Please enable them in your browser settings.');
+                debugLog('Desktop notifications are blocked');
+            }
+        }
+
+        // Show desktop notification
+        function showDesktopNotification(title, body, type = 'info', actions = []) {
+            // Also show in-page notification
+            showAlert(body, getNotificationTypeClass(type), getNotificationIcon(type));
+            
+            // Check if desktop notifications are supported and allowed
+            if (!("Notification" in window) || Notification.permission !== 'granted') {
+                debugLog('Desktop notification not shown - permission not granted');
+                return;
+            }
+
+            try {
+                const options = {
+                    body: body,
+                    icon: getNotificationIconUrl(type),
+                    badge: '/favicon.ico', // You can add your own badge icon
+                    tag: `sinchan-${type}-${Date.now()}`, // Unique tag to prevent duplicate notifications
+                    requireInteraction: type === 'critical' || type === 'danger', // Keep critical notifications visible
+                    silent: false,
+                    timestamp: Date.now(),
+                    data: {
+                        type: type,
+                        timestamp: new Date().toISOString()
+                    }
+                };
+
+                // Add vibration for mobile devices
+                if ('vibrate' in navigator && (type === 'danger' || type === 'warning')) {
+                    navigator.vibrate([200, 100, 200]);
+                }
+
+                const notification = new Notification(title, options);
+                
+                // Auto-close notification after specified time (except for critical ones)
+                if (type !== 'critical' && type !== 'danger') {
+                    setTimeout(() => {
+                        notification.close();
+                    }, type === 'warning' ? 8000 : 5000);
+                }
+
+                // Handle notification click
+                notification.onclick = function(event) {
+                    event.preventDefault();
+                    window.focus(); // Focus the browser window
+                    notification.close();
+                    
+                    // Optional: Navigate to specific section based on notification type
+                    if (type === 'motion' || type === 'danger') {
+                        // Could scroll to sensor status or open gallery
+                        document.getElementById('sensorStatus').scrollIntoView({ behavior: 'smooth' });
+                    }
+                };
+
+                debugLog(`Desktop notification sent: ${title} - ${body}`);
+                
+            // console.log('[Notification]', title, body); // Tambahkan ini untuk debug
+            
+            // if (!("Notification" in window) || Notification.permission !== 'granted') {
+            //     console.warn("Notification not sent - permission denied or unsupported");
+            //     return;
+            // }
+            
+            } catch (error) {
+                debugLog(`Failed to show desktop notification: ${error.message}`);
+            }
+        }
+
+        // Get notification type class for in-page alerts
+        function getNotificationTypeClass(type) {
+            const typeMap = {
+                'success': 'success',
+                'danger': 'danger',
+                'warning': 'warning',
+                'info': 'info',
+                'motion': 'warning',
+                'critical': 'danger',
+                'sirene': 'danger'
+            };
+            return typeMap[type] || 'info';
+        }
+
+        // Get notification icon
+        function getNotificationIcon(type) {
+            const iconMap = {
+                'success': 'fa-check-circle',
+                'danger': 'fa-exclamation-triangle',
+                'warning': 'fa-exclamation-triangle',
+                'info': 'fa-info-circle',
+                'motion': 'fa-running',
+                'critical': 'fa-exclamation-triangle',
+                'sirene': 'fa-bullhorn'
+            };
+            return iconMap[type] || 'fa-info-circle';
+        }
+
+        // Get notification icon URL for desktop notifications
+        function getNotificationIconUrl(type) {
+            // Simple colored circle icons for different notification types
+            const iconMap = {
+                'success': 'data:image/svg+xml;charset=utf-8,<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64"><circle cx="32" cy="32" r="30" fill="%2316a34a"/><path d="M20 32l8 8 16-16" stroke="white" stroke-width="4" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+                'danger': 'data:image/svg+xml;charset=utf-8,<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64"><circle cx="32" cy="32" r="30" fill="%23dc2626"/><path d="M32 16v16M32 40h0" stroke="white" stroke-width="4" stroke-linecap="round"/></svg>',
+                'warning': 'data:image/svg+xml;charset=utf-8,<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64"><circle cx="32" cy="32" r="30" fill="%23d97706"/><path d="M32 16v16M32 40h0" stroke="white" stroke-width="4" stroke-linecap="round"/></svg>',
+                'info': 'data:image/svg+xml;charset=utf-8,<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64"><circle cx="32" cy="32" r="30" fill="%230891b2"/><path d="M32 24v16M32 16h0" stroke="white" stroke-width="4" stroke-linecap="round"/></svg>',
+                'motion': 'data:image/svg+xml;charset=utf-8,<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64"><circle cx="32" cy="32" r="30" fill="%23d97706"/><path d="M20 32h24M36 24l8 8-8 8" stroke="white" stroke-width="4" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+                'critical': 'data:image/svg+xml;charset=utf-8,<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64"><circle cx="32" cy="32" r="30" fill="%23dc2626"/><path d="M32 16v16M32 40h0" stroke="white" stroke-width="6" stroke-linecap="round"/></svg>',
+                'sirene': 'data:image/svg+xml;charset=utf-8,<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64"><circle cx="32" cy="32" r="30" fill="%23dc2626"/><path d="M24 28h16v8H24z M20 24h24v4H20z M20 40h24v4H20z" fill="white"/></svg>'
+            };
+            return iconMap[type] || iconMap['info'];
+        }
+
+        // Update notification UI elements
+        function updateNotificationUI() {
+            const statusElement = document.getElementById('notificationStatus');
+            const enableBtn = document.getElementById('enableNotificationsBtn');
+            
+            if (!statusElement || !enableBtn) return;
+            
+            switch (notificationPermission) {
+                case 'granted':
+                    statusElement.textContent = 'Enabled';
+                    statusElement.className = 'notification-status notification-granted';
+                    enableBtn.innerHTML = '<i class="fas fa-check me-1"></i>Enabled';
+                    enableBtn.disabled = true;
+                    enableBtn.className = 'btn btn-success btn-sm';
+                    break;
+                case 'denied':
+                    statusElement.textContent = 'Blocked';
+                    statusElement.className = 'notification-status notification-denied';
+                    enableBtn.innerHTML = '<i class="fas fa-times me-1"></i>Blocked';
+                    enableBtn.disabled = true;
+                    enableBtn.className = 'btn btn-danger btn-sm';
+                    break;
+                default:
+                    statusElement.textContent = 'Not Enabled';
+                    statusElement.className = 'notification-status notification-default';
+                    enableBtn.innerHTML = '<i class="fas fa-bell me-1"></i>Enable Notifications';
+                    enableBtn.disabled = false;
+                    enableBtn.className = 'btn btn-warning btn-sm';
+            }
+        }
+
+        // Show notification permission panel
+        function showNotificationPanel() {
+            const panel = document.getElementById('notificationPanel');
+            if (panel) {
+                panel.classList.add('show');
+            }
+        }
+
+        // Hide notification permission panel
+        function hideNotificationPanel() {
+            const panel = document.getElementById('notificationPanel');
+            if (panel) {
+                panel.classList.remove('show');
+            }
+        }
+
+        // Test desktop notification
+        function testDesktopNotification() {
+            showDesktopNotification(
+                'Test Notification',
+                'This is a test notification from Sinchan Security System',
+                'info'
+            );
+        }
+
+        // Enhanced notification functions for different events
+        function notifyMotionDetected() {
+            showDesktopNotification(
+                '🚨 MOTION DETECTED!',
+                'PIR sensor detected movement. Security sequence initiated.',
+                'motion'
+            );
+        }
+
+        function notifyImageCaptured(captureType = 'manual') {
+            const typeText = captureType === 'manual' ? 'Manual Capture' : 
+                           captureType === 'motion' ? 'Motion Detection' : 'Capture';
+            
+            showDesktopNotification(
+                '📷 Image Captured',
+                `${typeText} - Image saved to database successfully.`,
+                'success'
+            );
+        }
+
+        function notifySireneActivated(status) {
+            const isActive = status === 'sireneOn' || status === 'active' || status === '1';
+            showDesktopNotification(
+                isActive ? '🔊 SIREN ACTIVATED!' : '🔇 Siren Deactivated',
+                isActive ? 'Security siren is now active' : 'Security siren has been turned off',
+                isActive ? 'danger' : 'info'
+            );
+        }
+
+        function notifySequenceStarted() {
+            showDesktopNotification(
+                '⚠️ SECURITY SEQUENCE ACTIVE',
+                'Motion sequence started: 2 images → siren → 8 images → siren',
+                'warning'
+            );
+        }
+
+        function notifySequenceCompleted() {
+            showDesktopNotification(
+                '✅ Security Sequence Complete',
+                'Motion detection sequence finished. PIR sensor re-enabled.',
+                'success'
+            );
+        }
+
+        function notifyConnectionStatus(isOnline) {
+            if (isOnline) {
+                showDesktopNotification(
+                    '🔗 MQTT Connected',
+                    'Successfully connected to security system',
+                    'success'
+                );
+            } else {
+                showDesktopNotification(
+                    '⚠️ Connection Lost',
+                    'Lost connection to security system. Attempting to reconnect...',
+                    'warning'
+                );
+            }
+        }
+
+        function notifyCriticalAlert(message) {
+            showDesktopNotification(
+                '🚨 CRITICAL ALERT',
+                message,
+                'critical'
+            );
+        }
+
+        // ====== END DESKTOP NOTIFICATION SYSTEM ======
 
         // Enhanced Authentication Check with Role-Based Access Control
         function checkAuthentication() {
@@ -720,6 +1077,9 @@
             if (!checkAuthentication()) {
                 return;
             }
+            
+            // Initialize notification system
+            checkNotificationSupport();
             
             // Check if returning from navigation
             if (checkNavigationState()) {
@@ -1010,77 +1370,9 @@
                 </div>
                 </div>
             `);
-        }
 
-        function notifyImageCaptured(captureType = 'manual') {
-            const typeText = captureType === 'manual' ? 'Manual Capture' : 
-                           captureType === 'motion' ? 'Motion Detection' : 'Capture';
-            
-            showAlert(`
-                <div class="alert d-flex bg-info-l3 brc-info-m2 border-2 radius-1 py-2 px-3 mb-2">
-                <i class="fas fa-camera fa-lg text-info me-3 mt-1"></i>
-                <div>
-                    <strong class="text-dark-tp3">Gambar Berhasil Ditangkap!</strong><br />
-                    ${typeText} - Gambar disimpan ke database.<br />
-                    <small class="text-grey-m2"><i class="far fa-clock"></i> ${new Date().toLocaleTimeString()}</small>
-                </div>
-                </div>
-            `);
-        }
-
-        function notifyMotionSequence() {
-            showAlert(`
-                <div class="alert d-flex bg-warning-l2 brc-warning-m3 border-2 radius-1 py-2 px-3 mb-2">
-                <i class="fas fa-exclamation-triangle fa-lg text-warning me-3 mt-1"></i>
-                <div>
-                    <strong class="text-dark-tp3">Motion Sequence Dimulai!</strong><br />
-                    2 gambar → sirene 10s → 8 gambar → sirene 10s<br />
-                    <small class="text-grey-m2"><i class="far fa-clock"></i> ${new Date().toLocaleTimeString()}</small>
-                </div>
-                </div>
-            `);
-        }
-
-        function notifySequenceBlocked() {
-            showAlert(`
-                <div class="alert d-flex bg-secondary-l3 brc-secondary-m2 border-2 radius-1 py-2 px-3 mb-2">
-                <i class="fas fa-lock fa-lg text-secondary me-3 mt-1"></i>
-                <div>
-                    <strong class="text-dark-tp3">PIR Detection Diblokir!</strong><br />
-                    Sequence motion sedang berlangsung.<br />
-                    <small class="text-grey-m2"><i class="far fa-clock"></i> ${new Date().toLocaleTimeString()}</small>
-                </div>
-                </div>
-            `);
-        }
-
-        function notifySequenceComplete() {
-            showAlert(`
-                <div class="alert d-flex bg-success-l3 brc-success-m2 border-2 radius-1 py-2 px-3 mb-2">
-                <i class="fas fa-check-circle fa-lg text-success me-3 mt-1"></i>
-                <div>
-                    <strong class="text-dark-tp3">Sequence Selesai!</strong><br />
-                    PIR detection diaktifkan kembali.<br />
-                    <small class="text-grey-m2"><i class="far fa-clock"></i> ${new Date().toLocaleTimeString()}</small>
-                </div>
-                </div>
-            `);
-        }
-
-        function notifySirene(status) {
-            const label = status === 'sireneOn' ? 'Sirene Aktif!' : 'Sirene Nonaktif';
-            const tone = status === 'sireneOn' ? 'danger' : 'secondary';
-            const icon = status === 'sireneOn' ? 'fa-volume-up' : 'fa-volume-mute';
-            showAlert(`
-                <div class="alert d-flex bgc-${tone}-l3 brc-${tone}-m2 border-2 radius-1 py-2 px-3 mb-2">
-                <i class="fas ${icon} fa-lg text-${tone} me-3 mt-1"></i>
-                <div>
-                    <strong class="text-dark-tp3">${label}</strong><br />
-                    Sirene ${status === 'sireneOn' ? 'dinyalakan' : 'dimatikan'} oleh sistem.<br />
-                    <small class="text-grey-m2"><i class="far fa-clock"></i> ${new Date().toLocaleTimeString()}</small>
-                </div>
-                </div>
-            `);
+            // Send desktop notification
+            notifyMotionDetected();
         }
 
         // Debug logging with role information
@@ -1193,6 +1485,9 @@
             updateConnectionStatus(true);
             reconnectAttempts = 0;
             
+            // Send desktop notification for connection
+            notifyConnectionStatus(true);
+            
             // Update button state
             document.getElementById('btnConnect').innerHTML = '<i class="fas fa-check me-1"></i>Connected';
             document.getElementById('btnConnect').disabled = false;
@@ -1212,6 +1507,11 @@
             debugLog('MQTT Connection failed: ' + error.errorMessage);
             updateConnectionStatus(false);
             
+            // Send desktop notification for connection failure
+            if (reconnectAttempts === 0) { // Only notify on first failure
+                notifyConnectionStatus(false);
+            }
+            
             // Update button state
             document.getElementById('btnConnect').innerHTML = '<i class="fas fa-plug me-1"></i>Connect';
             document.getElementById('btnConnect').disabled = false;
@@ -1224,6 +1524,7 @@
                 setTimeout(connectMQTT, delay);
             } else {
                 debugLog('Max reconnection attempts reached. Please check your configuration.');
+                notifyCriticalAlert('Max reconnection attempts reached. Please check MQTT configuration.');
             }
         }
 
@@ -1231,6 +1532,9 @@
             if (responseObject.errorCode !== 0) {
                 debugLog('MQTT Connection lost: ' + responseObject.errorMessage);
                 updateConnectionStatus(false);
+                
+                // Send desktop notification
+                notifyConnectionStatus(false);
                 
                 // Update button state
                 document.getElementById('btnConnect').innerHTML = '<i class="fas fa-plug me-1"></i>Connect';
@@ -1300,7 +1604,7 @@
                 // If coming from sequence_active, sequence is complete
                 if (previousStatus === 'sequence_active') {
                     debugLog('Motion detection sequence completed');
-                    notifySequenceComplete();
+                    notifySequenceCompleted();
                     showAlert('Motion sequence completed - PIR detection re-enabled', 'success', 'fa-check-circle');
                     // Clear motion flags after sequence completes
                     sessionStorage.removeItem('motionDetected');
@@ -1310,7 +1614,6 @@
                 sensorEl.classList.add('sensor-sequence');
                 sensorText.textContent = 'SEQUENCE RUNNING';
                 debugLog('Motion sequence in progress - PIR detection blocked');
-                notifySequenceBlocked();
                 showAlert('PIR detection blocked during sequence', 'info', 'fa-lock');
             } else {
                 sensorEl.classList.add('sensor-inactive');
@@ -1321,7 +1624,7 @@
         function handleMotionDetection(status) {    
             if (status === 'detected' || status === '1' || status === 'true') {
                 debugLog('Motion detection signal received!');
-                notifyMotionSequence();
+                notifySequenceStarted();
                 showAlert('MOTION SEQUENCE: 2 images → sirene → 8 images → sirene', 'warning', 'fa-exclamation-triangle');
 
                 // Mark that motion was detected - this will be used for folder creation
@@ -1363,20 +1666,21 @@
             const isManualCapture = manualCapture === 'true' && manualCaptureTime &&
                                    (currentTime - parseInt(manualCaptureTime)) < 15000;
             
-            notifyImageCaptured();
-            
             if (isManualCapture) {
                 // This image is from manual capture - no siren, clear manual flag
                 debugLog('Image from manual capture - no siren activation');
+                notifyImageCaptured('manual');
                 sessionStorage.removeItem('manualCapture');
                 sessionStorage.removeItem('manualCaptureTime');
             } else if (isMotionTriggered) {
                 // This image is from motion detection sequence - siren handled by RPi
                 debugLog('Image from motion detection sequence - siren controlled by RPi');
+                notifyImageCaptured('motion');
                 // Don't clear motion flag here as multiple images will come in
             } else {
                 // Unknown source - default to no siren for safety
                 debugLog('Image from unknown source - no siren activation');
+                notifyImageCaptured();
             }
         }
 
@@ -1396,6 +1700,7 @@
                 const previousStatus = sireneEl.getAttribute('data-sirene-status');
                 if (previousStatus !== 'active' && (currentTime - lastNotificationTime) > 1500) {
                     showAlert('Sirene AKTIF', 'danger', 'fa-bullhorn');
+                    notifySireneActivated('sireneOn');
                     sireneEl.setAttribute('data-last-notification', currentTime.toString());
                 }
                 sireneEl.setAttribute('data-sirene-status', 'active');
@@ -1407,6 +1712,7 @@
                 const previousStatus = sireneEl.getAttribute('data-sirene-status');
                 if (previousStatus === 'active' && (currentTime - lastNotificationTime) > 1500) {
                     showAlert('Sirene NONAKTIF', 'secondary', 'fa-volume-mute');
+                    notifySireneActivated('sireneOff');
                     sireneEl.setAttribute('data-last-notification', currentTime.toString());
                 }
                 sireneEl.setAttribute('data-sirene-status', 'inactive');
@@ -1628,22 +1934,6 @@
             return true;
         }
 
-        // Override the original checkAuthentication in initialization
-        document.addEventListener('DOMContentLoaded', function() {
-            // Check authentication first with enhanced features
-            if (!enhancedCheckAuthentication()) {
-                return;
-            }
-            
-            // Check if returning from navigation
-            if (checkNavigationState()) {
-                return; // Skip normal initialization
-            }
-            
-            // Normal initialization
-            initializeHomepage();
-        });
-
         // Security logging for access attempts
         function logSecurityEvent(event, details = '') {
             const timestamp = new Date().toISOString();
@@ -1709,6 +1999,10 @@
                         e.preventDefault();
                         document.getElementById('btnCapture').click();
                         break;
+                    case 't':
+                        e.preventDefault();
+                        testDesktopNotification();
+                        break;
                 }
             }
         });
@@ -1725,6 +2019,7 @@
                             <li><i class="fas fa-images text-info"></i> Gallery - View captured images</li>
                             <li><i class="fas fa-calendar text-success"></i> Activity Calendar - Monitor activity dates</li>
                             <li><i class="fas fa-wifi text-warning"></i> MQTT Connection - Real-time communication</li>
+                            <li><i class="fas fa-bell text-info"></i> Desktop Notifications - Alerts even when tab is inactive</li>
                         </ul>
                     </div>
             `;
@@ -1739,7 +2034,7 @@
                             <li><i class="fas fa-user-shield text-primary"></i> Admin Panel - User management</li>
                         </ul>
                         <div class="small text-muted">
-                            <strong>Keyboard Shortcuts:</strong> Ctrl+Alt+1 (Sensor On), Ctrl+Alt+2 (Sensor Off), Ctrl+Alt+3 (Toggle Siren), Ctrl+Alt+C (Capture)
+                            <strong>Keyboard Shortcuts:</strong> Ctrl+Alt+1 (Sensor On), Ctrl+Alt+2 (Sensor Off), Ctrl+Alt+3 (Toggle Siren), Ctrl+Alt+C (Capture), Ctrl+Alt+T (Test Notification)
                         </div>
                     </div>
                 `;
@@ -1753,13 +2048,27 @@
                 `;
             }
             
-            helpMessage += `</div>`;
+            helpMessage += `
+                    <div class="mb-3">
+                        <h6>Desktop Notifications:</h6>
+                        <p class="small">Enable desktop notifications to receive security alerts even when:</p>
+                        <ul class="small">
+                            <li>You're browsing other websites</li>
+                            <li>You're using other applications</li>
+                            <li>Your browser tab is minimized</li>
+                            <li>Your screen is locked (depending on system settings)</li>
+                        </ul>
+                        <p class="small text-muted">
+                            <strong>Privacy:</strong> Notifications are handled locally by your browser. No data is sent to external servers.
+                        </p>
+                    </div>
+                </div>`;
             
             // Create and show help modal (you can implement this with Bootstrap modal)
             alert(helpMessage.replace(/<[^>]*>/g, '')); // Simple alert for now
         }
 
-        // Add help button functionality (if you want to add a help button)
+        // Add help button functionality
         function addHelpButton() {
             const headerDiv = document.querySelector('.d-flex.justify-content-between.align-items-center.mb-4 .text-end');
             if (headerDiv) {
@@ -1828,6 +2137,53 @@
                 }
             }
         });
+
+        // Handle browser notification permission changes
+        document.addEventListener('visibilitychange', function() {
+            if (!document.hidden) {
+                // Page became visible, check if notification permission changed
+                if (Notification.permission !== notificationPermission) {
+                    notificationPermission = Notification.permission;
+                    updateNotificationUI();
+                    debugLog(`Notification permission changed to: ${notificationPermission}`);
+                }
+            }
+        });
+
+        // Service Worker registration for enhanced notification support (optional)
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', function() {
+                // You can register a service worker here for more advanced notification features
+                debugLog('Service Worker support detected');
+            });
+        }
+
+        // Notification sound (optional - you can add sound effects)
+        function playNotificationSound(type = 'default') {
+            // You can add audio elements or use Web Audio API for notification sounds
+            // For now, we'll use a simple beep for critical notifications
+            if (type === 'critical' || type === 'danger') {
+                // Create a simple beep sound using Web Audio API
+                try {
+                    const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                    const oscillator = audioContext.createOscillator();
+                    const gainNode = audioContext.createGain();
+                    
+                    oscillator.connect(gainNode);
+                    gainNode.connect(audioContext.destination);
+                    
+                    oscillator.frequency.value = 800; // Frequency in Hz
+                    gainNode.gain.setValueAtTime(0.1, audioContext.currentTime);
+                    gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.3);
+                    
+                    oscillator.start(audioContext.currentTime);
+                    oscillator.stop(audioContext.currentTime + 0.3);
+                } catch (error) {
+                    debugLog('Audio notification failed: ' + error.message);
+                }
+            }
+        }
+
     </script>
 
 <!-- Floating Toast Container -->
