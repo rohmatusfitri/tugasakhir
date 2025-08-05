@@ -753,8 +753,8 @@
                     body: body,
                     icon: getNotificationIconUrl(type),
                     badge: '/favicon.ico', // You can add your own badge icon
-                    // tag: `sinchan-${type}-${Date.now()}`, // Unique tag to prevent duplicate notifications
-                    requireInteraction: false,
+                    tag: `sinchan-${type}-${Date.now()}`, // Unique tag to prevent duplicate notifications
+                    requireInteraction: type === 'critical' || type === 'danger',
                     silent: false,
                     timestamp: Date.now(),
                     data: {
@@ -936,7 +936,7 @@
             showDesktopNotification(
                 '⚠️ SECURITY SEQUENCE ACTIVE',
                 'Motion sequence started: 2 images → siren → 8 images → siren',
-                'warning'
+                'danger'
             );
         }
 
