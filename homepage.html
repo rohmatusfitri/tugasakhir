@@ -754,7 +754,7 @@
                     icon: getNotificationIconUrl(type),
                     badge: '/favicon.ico', // You can add your own badge icon
                     tag: `sinchan-${type}-${Date.now()}`, // Unique tag to prevent duplicate notifications
-                    requireInteraction: type === 'critical' || type === 'danger', // Keep critical notifications visible
+                    requireInteraction: false,
                     silent: false,
                     timestamp: Date.now(),
                     data: {
