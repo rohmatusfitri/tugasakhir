@@ -790,15 +790,7 @@
                     }
                 };
 
-                debugLog(`Desktop notification sent: ${title} - ${body}`);
-                
-            // console.log('[Notification]', title, body); // Tambahkan ini untuk debug
-            
-            // if (!("Notification" in window) || Notification.permission !== 'granted') {
-            //     console.warn("Notification not sent - permission denied or unsupported");
-            //     return;
-            // }
-            
+                debugLog(`Desktop notification sent: ${title} - ${body}`);    
             } catch (error) {
                 debugLog(`Failed to show desktop notification: ${error.message}`);
             }
@@ -908,7 +900,7 @@
             showDesktopNotification(
                 '🚨 MOTION DETECTED!',
                 'PIR sensor detected movement. Security sequence initiated.',
-                'motion'
+                'danger'
             );
         }
 
@@ -936,7 +928,7 @@
             showDesktopNotification(
                 '⚠️ SECURITY SEQUENCE ACTIVE',
                 'Motion sequence started: 2 images → siren → 8 images → siren',
-                'danger'
+                'motion'
             );
         }
 
