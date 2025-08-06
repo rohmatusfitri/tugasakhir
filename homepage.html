@@ -558,7 +558,7 @@
                         Lihat Galeri Gambar
                     </button>
 
-                    <div id="superAdminControls" style="display: none;">
+                    <div id="superAdminControls">
                         <button id="btnSensorOn" class="control-button btn btn-success">
                             <i class="fas fa-play me-2"></i>
                             Sensor ON
@@ -994,20 +994,19 @@
             const restrictedControls = document.getElementById('restrictedControls');
             const adminPanelBtn = document.getElementById('adminPanelBtn');
 
+            // --- REVISED LOGIC ---
+            // Step 1: Give ALL logged-in users access to the main controls.
+            superAdminControls.style.display = 'block';
+            restrictedControls.style.display = 'none'; // Hide the restricted version for everyone.
+            debugLog('Full dashboard controls enabled for current user.');
+
+            // Step 2: Conditionally show the "Admin Panel" button ONLY for the top-level role.
             if (userRole === 'superadmin') {
-                // Admin: Show all controls and admin panel button
-                superAdminControls.style.display = 'block';
-                restrictedControls.style.display = 'none';
                 adminPanelBtn.style.display = 'inline-block';
-                
-                debugLog('Admin access granted - Full system control enabled');
+                debugLog('Admin Panel access granted for Admin role.');
             } else {
-                // Regular User: Hide sensitive controls, show restricted indicators
-                superAdminControls.style.display = 'none';
-                restrictedControls.style.display = 'block';
                 adminPanelBtn.style.display = 'none';
-                
-                debugLog('Regular User access - Restricted control mode enabled');
+                debugLog('Admin Panel access restricted for User role.');
             }
         }
 
@@ -1120,38 +1119,34 @@
                 }, 2000);
             });
 
-            // Admin only controls
-            if (currentUserRole === 'superadmin') {
-                const btnSensorOn = document.getElementById('btnSensorOn');
-                const btnSensorOff = document.getElementById('btnSensorOff');
-                const btnSireneToggle = document.getElementById('btnSireneToggle');
+            // --- REVISED LOGIC ---
+            // Make sensor and siren controls available to all logged-in users.
+            const btnSensorOn = document.getElementById('btnSensorOn');
+            const btnSensorOff = document.getElementById('btnSensorOff');
+            const btnSireneToggle = document.getElementById('btnSireneToggle');
 
-                if (btnSensorOn) {
-                    btnSensorOn.addEventListener('click', function() {
-                        publishMessage(MQTT_CONFIG.topics.sensor, 'sensorOn', 2);
-                        debugLog('Sensor ON command sent (Admin)');
-                    });
-                }
+            if (btnSensorOn) {
+                btnSensorOn.addEventListener('click', function() {
+                    publishMessage(MQTT_CONFIG.topics.sensor, 'sensorOn', 2);
+                    debugLog('Sensor ON command sent');
+                });
+            }
 
-                if (btnSensorOff) {
-                    btnSensorOff.addEventListener('click', function() {
-                        publishMessage(MQTT_CONFIG.topics.sensor, 'sensorOff', 2);
-                        debugLog('Sensor OFF command sent (Admin)');
-                    });
-                }
+            if (btnSensorOff) {
+                btnSensorOff.addEventListener('click', function() {
+                    publishMessage(MQTT_CONFIG.topics.sensor, 'sensorOff', 2);
+                    debugLog('Sensor OFF command sent');
+                });
+            }
 
-                if (btnSireneToggle) {
-                    btnSireneToggle.addEventListener('click', function() {
-                        const currentStatus = document.getElementById('sireneText').textContent;
-                        const newStatus = currentStatus === 'ACTIVE' ? '0' : '1';
-                        
-                        publishMessage(MQTT_CONFIG.topics.activate, newStatus, 2);
-                        debugLog(`Sirene toggle command sent: ${newStatus} (Admin)`);
-                    });
-                }
-            } else {
-                // For regular users, show access denied messages when they try to interact
-                debugLog('Sensor and sirene controls restricted for regular user');
+            if (btnSireneToggle) {
+                btnSireneToggle.addEventListener('click', function() {
+                    const currentStatus = document.getElementById('sireneText').textContent;
+                    const newStatus = currentStatus === 'ACTIVE' ? '0' : '1';
+                    
+                    publishMessage(MQTT_CONFIG.topics.activate, newStatus, 2);
+                    debugLog(`Sirene toggle command sent: ${newStatus}`);
+                });
             }
         }
 
@@ -2055,7 +2050,8 @@
                 // Insert before logout button
                 const logoutBtn = headerDiv.querySelector('button[onclick="logout()"]');
                 if (logoutBtn) {
-                    headerDiv.insertBefore(helpBtn, logoutBtn);
+                    // Corrected line: insert before the logout button in its actual parent
+                    logoutBtn.parentNode.insertBefore(helpBtn, logoutBtn);
                 }
             }
         }
