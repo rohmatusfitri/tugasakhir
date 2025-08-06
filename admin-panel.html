@@ -5,9 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Admin Panel | Sinchan Security System</title>
     
-    <!-- Bootstrap CSS -->
     <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css" rel="stylesheet">
-    <!-- Font Awesome -->
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     
     <style>
@@ -130,19 +128,18 @@
 </head>
 <body>
     <div class="main-container">
-        <!-- Header -->
         <div class="admin-header">
             <div class="d-flex justify-content-between align-items-center">
                 <div>
                     <h2 class="mb-0">
                         <i class="fas fa-user-shield me-2"></i>
-                        Super Admin Panel
+                        Admin Panel
                     </h2>
                     <p class="mb-0 opacity-75">User Management & System Control</p>
                 </div>
                 <div class="text-end">
                     <div class="small">Logged in as</div>
-                    <div class="fw-bold" id="currentUser">Super Administrator</div>
+                    <div class="fw-bold" id="currentUser">Administrator</div>
                     <button class="btn btn-outline-light btn-sm mt-2" onclick="logout()">
                         <i class="fas fa-sign-out-alt me-1"></i> Logout
                     </button>
@@ -150,7 +147,6 @@
             </div>
         </div>
 
-        <!-- Quick Actions -->
         <div class="quick-actions">
             <div class="row">
                 <div class="col-md-6">
@@ -160,7 +156,7 @@
                     </h5>
                     <div class="d-flex gap-2 flex-wrap">
                         <button class="btn btn-success btn-sm" onclick="showAddUserModal()">
-                            <i class="fas fa-user-plus me-1"></i> Add Admin
+                            <i class="fas fa-user-plus me-1"></i> Add User
                         </button>
                         <button class="btn btn-info btn-sm" onclick="refreshUserList()">
                             <i class="fas fa-sync me-1"></i> Refresh
@@ -190,7 +186,6 @@
             </div>
         </div>
 
-        <!-- Statistics Cards -->
         <div class="row mb-4">
             <div class="col-md-3 mb-3">
                 <div class="stats-card text-center">
@@ -198,7 +193,7 @@
                         <i class="fas fa-users"></i>
                     </div>
                     <h4 class="mb-1" id="totalAdmins">0</h4>
-                    <p class="text-muted mb-0">Total Admins</p>
+                    <p class="text-muted mb-0">Total Users</p>
                 </div>
             </div>
             <div class="col-md-3 mb-3">
@@ -207,7 +202,7 @@
                         <i class="fas fa-user-check"></i>
                     </div>
                     <h4 class="mb-1" id="activeAdmins">0</h4>
-                    <p class="text-muted mb-0">Active Admins</p>
+                    <p class="text-muted mb-0">Active Users</p>
                 </div>
             </div>
             <div class="col-md-3 mb-3">
@@ -230,7 +225,6 @@
             </div>
         </div>
 
-        <!-- User Management Table -->
         <div class="user-table">
             <div class="table-responsive">
                 <table class="table table-hover mb-0">
@@ -245,33 +239,30 @@
                         </tr>
                     </thead>
                     <tbody id="userTableBody">
-                        <!-- User rows will be populated here -->
-                    </tbody>
+                        </tbody>
                 </table>
             </div>
         </div>
 
-        <!-- Security Log -->
         <div class="mt-4">
             <h5 class="mb-3">
                 <i class="fas fa-shield-alt me-2"></i>
                 Security Activity Log
             </h5>
             <div class="security-log" id="securityLog">
-                [INFO] Super Admin panel initialized<br>
+                [INFO] Admin panel initialized<br>
                 [INFO] User management system loaded<br>
             </div>
         </div>
     </div>
 
-    <!-- Add/Edit User Modal -->
     <div class="modal fade" id="userModal" tabindex="-1">
         <div class="modal-dialog">
             <div class="modal-content">
                 <div class="modal-header">
                     <h5 class="modal-title" id="modalTitle">
                         <i class="fas fa-user-plus me-2"></i>
-                        Add New Admin
+                        Add New User
                     </h5>
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                 </div>
@@ -312,7 +303,6 @@
         </div>
     </div>
 
-    <!-- Confirm Delete Modal -->
     <div class="modal fade" id="deleteModal" tabindex="-1">
         <div class="modal-dialog">
             <div class="modal-content">
@@ -338,7 +328,6 @@
         </div>
     </div>
 
-    <!-- Bootstrap JS -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
 
     <script>
@@ -365,21 +354,21 @@
             }
 
             // Update current user display
-            const fullName = sessionStorage.getItem('fullName') || 'Super Administrator';
+            const fullName = sessionStorage.getItem('fullName') || 'Administrator';
             document.getElementById('currentUser').textContent = fullName;
         }
 
         function loadAdminUsers() {
             adminUsers = JSON.parse(localStorage.getItem('adminUsers') || '{}');
             
-            // Initialize with default admin if none exists
+            // Initialize with default user if none exists
             if (Object.keys(adminUsers).length === 0) {
                 adminUsers = {
                     'admin1': {
                         username: 'admin1',
                         password: 'admin123',
                         role: 'admin',
-                        fullName: 'Default Administrator',
+                        fullName: 'Default User',
                         createdBy: 'superadmin',
                         createdAt: new Date().toISOString(),
                         lastLogin: null,
@@ -394,7 +383,7 @@
             const totalAdmins = Object.keys(adminUsers).length;
             const activeAdmins = Object.values(adminUsers).filter(user => user.active).length;
             
-            // Calculate online admins (logged in within last 30 minutes)
+            // Calculate online users (logged in within last 30 minutes)
             const thirtyMinutesAgo = Date.now() - (30 * 60 * 1000);
             const onlineAdmins = Object.values(adminUsers).filter(user => 
                 user.lastLogin && new Date(user.lastLogin).getTime() > thirtyMinutesAgo
@@ -454,7 +443,7 @@
 
         function showAddUserModal() {
             currentEditingUser = null;
-            document.getElementById('modalTitle').innerHTML = '<i class="fas fa-user-plus me-2"></i>Add New Admin';
+            document.getElementById('modalTitle').innerHTML = '<i class="fas fa-user-plus me-2"></i>Add New User';
             document.getElementById('userForm').reset();
             document.getElementById('modalActive').checked = true;
             
@@ -466,7 +455,7 @@
             currentEditingUser = username;
             const user = adminUsers[username];
             
-            document.getElementById('modalTitle').innerHTML = '<i class="fas fa-user-edit me-2"></i>Edit Admin';
+            document.getElementById('modalTitle').innerHTML = '<i class="fas fa-user-edit me-2"></i>Edit User';
             document.getElementById('modalUsername').value = user.username;
             document.getElementById('modalFullName').value = user.fullName;
             document.getElementById('modalPassword').value = user.password;
@@ -533,14 +522,14 @@
 
             // Log the action
             const action = currentEditingUser ? 'modified' : 'created';
-            logSecurityEvent(`Admin user '${username}' ${action}`);
+            logSecurityEvent(`User account '${username}' ${action}`);
 
             // Close modal and refresh table
             bootstrap.Modal.getInstance(document.getElementById('userModal')).hide();
             updateUserTable();
             updateStatistics();
 
-            alert(`User ${username} ${action} successfully`);
+            alert(`User account ${username} ${action} successfully`);
         }
 
         function toggleUserStatus(username) {
@@ -550,7 +539,7 @@
             localStorage.setItem('adminUsers', JSON.stringify(adminUsers));
             
             const status = user.active ? 'activated' : 'deactivated';
-            logSecurityEvent(`Admin user '${username}' ${status}`);
+            logSecurityEvent(`User account '${username}' ${status}`);
             
             updateUserTable();
             updateStatistics();
@@ -569,7 +558,7 @@
                 delete adminUsers[userToDelete];
                 localStorage.setItem('adminUsers', JSON.stringify(adminUsers));
                 
-                logSecurityEvent(`Admin user '${userToDelete}' deleted`);
+                logSecurityEvent(`User account '${userToDelete}' deleted`);
                 
                 bootstrap.Modal.getInstance(document.getElementById('deleteModal')).hide();
                 updateUserTable();
@@ -604,7 +593,7 @@
             
             const link = document.createElement('a');
             link.href = URL.createObjectURL(dataBlob);
-            link.download = `admin_users_export_${new Date().toISOString().split('T')[0]}.json`;
+            link.download = `users_export_${new Date().toISOString().split('T')[0]}.json`;
             link.click();
             
             logSecurityEvent('User data exported');
@@ -620,7 +609,7 @@
 
         function logout() {
             if (confirm('Are you sure you want to logout?')) {
-                logSecurityEvent('Super admin logged out');
+                logSecurityEvent('Admin logged out');
                 sessionStorage.clear();
                 window.location.replace("login.html");
             }
