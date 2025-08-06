@@ -288,10 +288,10 @@
     
     <div class="login-form">
       <div class="user-type-selector">
-        <div class="user-type-option active" data-type="user">
-          <i class="fas fa-user"></i> Petugas Lapangan
+        <div class="user-type-option active" data-type="admin">
+          <i class="fas fa-user"></i> User
         </div>
-        <div class="user-type-option" data-type="admin">
+        <div class="user-type-option" data-type="superadmin">
           <i class="fas fa-user-shield"></i> Admin
         </div>
       </div>
@@ -332,34 +332,34 @@
   <script>
     // User management data (in production, this should be in a secure database)
     let userData = {
-      admin: {
-        username: 'admin',
-        password: 'admin123',
-        role: 'admin',
+      superadmin: {
+        username: 'superadmin',
+        password: 'super123admin',
+        role: 'superadmin',
         fullName: 'Administrator',
         lastLogin: null
       },
-      fieldUsers: JSON.parse(localStorage.getItem('fieldUsers') || '{}')
+      admins: JSON.parse(localStorage.getItem('adminUsers') || '{}')
     };
 
-    // Initialize with default field user if none exists
-    if (Object.keys(userData.fieldUsers).length === 0) {
-      userData.fieldUsers = {
-        'user1': {
-          username: 'user1',
-          password: 'user123',
-          role: 'user',
-          fullName: 'Petugas Lapangan 1',
-          createdBy: 'admin',
+    // Initialize with default admin if none exists
+    if (Object.keys(userData.admins).length === 0) {
+      userData.admins = {
+        'admin1': {
+          username: 'admin1',
+          password: 'admin123',
+          role: 'admin',
+          fullName: 'User',
+          createdBy: 'superadmin',
           createdAt: new Date().toISOString(),
           lastLogin: null,
           active: true
         }
       };
-      localStorage.setItem('fieldUsers', JSON.stringify(userData.fieldUsers));
+      localStorage.setItem('adminUsers', JSON.stringify(userData.admins));
     }
 
-    let currentUserType = 'user';
+    let currentUserType = 'admin';
     let loginAttempts = 0;
     const maxLoginAttempts = 5;
     const lockoutDuration = 15 * 60 * 1000; // 15 minutes
@@ -386,8 +386,8 @@
       const userRole = sessionStorage.getItem('userRole');
       
       if (isLoggedIn === 'true') {
-        if (userRole === 'admin') {
-          window.location.replace("user-management.html");
+        if (userRole === 'superadmin') {
+          window.location.replace("admin-panel.html");
         } else {
           window.location.replace("homepage.html");
         }
@@ -404,12 +404,12 @@
           clearError();
           
           // Update placeholder text
-          if (currentUserType === 'admin') {
+          if (currentUserType === 'superadmin') {
             usernameInput.placeholder = 'Admin username';
             passwordInput.placeholder = 'Admin password';
           } else {
-            usernameInput.placeholder = 'Petugas lapangan username';
-            passwordInput.placeholder = 'Petugas lapangan password';
+            usernameInput.placeholder = 'User username';
+            passwordInput.placeholder = 'User password';
           }
         });
       });
@@ -489,8 +489,8 @@
           updateLastLogin(username, currentUserType);
 
           // Redirect based on role
-          if (loginResult.user.role === 'admin') {
-            window.location.replace("user-management.html");
+          if (loginResult.user.role === 'superadmin') {
+            window.location.replace("admin-panel.html");
           } else {
             window.location.replace("homepage.html");
           }
@@ -513,21 +513,21 @@
     }
 
     function authenticateUser(username, password, userType) {
-      if (userType === 'admin') {
-        if (username === userData.admin.username && password === userData.admin.password) {
+      if (userType === 'superadmin') {
+        if (username === userData.superadmin.username && password === userData.superadmin.password) {
           return {
             success: true,
-            user: userData.admin
+            user: userData.superadmin
           };
         }
       } else {
-        const fieldUser = userData.fieldUsers[username];
-        if (fieldUser && fieldUser.password === password && fieldUser.active) {
+        const admin = userData.admins[username];
+        if (admin && admin.password === password && admin.active) {
           return {
             success: true,
-            user: fieldUser
+            user: admin
           };
-        } else if (fieldUser && !fieldUser.active) {
+        } else if (admin && !admin.active) {
           return {
             success: false,
             message: 'Account has been deactivated'
@@ -544,11 +544,11 @@
     function updateLastLogin(username, userType) {
       const loginTime = new Date().toISOString();
       
-      if (userType === 'admin') {
-        userData.admin.lastLogin = loginTime;
+      if (userType === 'superadmin') {
+        userData.superadmin.lastLogin = loginTime;
       } else {
-        userData.fieldUsers[username].lastLogin = loginTime;
-        localStorage.setItem('fieldUsers', JSON.stringify(userData.fieldUsers));
+        userData.admins[username].lastLogin = loginTime;
+        localStorage.setItem('adminUsers', JSON.stringify(userData.admins));
       }
     }
 
@@ -576,10 +576,10 @@
     }
 
     function showForgotPasswordDialog() {
-      if (currentUserType === 'admin') {
+      if (currentUserType === 'superadmin') {
         alert('Admin password cannot be reset through this interface. Please contact system administrator.');
       } else {
-        alert('Please contact your Administrator to reset your password.');
+        alert('Please contact your Admin to reset your password.');
       }
     }
 
