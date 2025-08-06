@@ -6,11 +6,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Sinchan Security System</title>
     
-    <!-- Bootstrap CSS -->
     <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css" rel="stylesheet">
-    <!-- Font Awesome -->
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
-    <!-- MQTT Client -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/paho-mqtt/1.0.1/mqttws31.min.js"></script>
     
     <style>
@@ -421,7 +418,6 @@
     </style>
 </head>
 <body>
-    <!-- Loading Overlay -->
     <div class="loading-overlay" id="loadingOverlay">
         <div class="text-center">
             <div class="spinner-border text-primary" role="status">
@@ -431,14 +427,12 @@
         </div>
     </div>
 
-    <!-- Connection Status -->
     <div id="connectionStatus" class="connection-status connection-offline">
         <i class="fas fa-circle me-2"></i>
         <span>Offline</span>
     </div>
 
     <div class="main-container">
-        <!-- Header -->
         <div class="d-flex justify-content-between align-items-center mb-4">
             <div>
                 <h1 class="dashboard-title mb-0">
@@ -451,7 +445,7 @@
                 <div class="user-info mb-2">
                     <i class="fas fa-user me-1"></i>
                     <span id="currentUserName">Loading...</span>
-                    <span class="user-role" id="userRole">Admin</span>
+                    <span class="user-role" id="userRole">User</span>
                 </div>
                 <div id="lastUpdate" class="text-muted small">
                     Last update: Never
@@ -469,7 +463,6 @@
             </div>
         </div>
 
-        <!-- Desktop Notification Panel -->
         <div class="notification-panel" id="notificationPanel">
             <div class="d-flex align-items-center justify-content-between">
                 <div>
@@ -492,7 +485,6 @@
             </div>
         </div>
         
-        <!-- MQTT Configuration Panel -->
         <div class="config-panel">
             <h5 class="mb-3">
                 <i class="fas fa-cog me-2"></i>
@@ -520,7 +512,6 @@
             </div>
         </div>
 
-        <!-- Status Cards -->
         <div class="row mb-4">
             <div class="col-md-6 mb-3">
                 <div id="sensorStatus" class="status-card sensor-inactive p-4 h-100">
@@ -554,11 +545,9 @@
             </div>
         </div>
 
-        <!-- Control Buttons -->
         <div class="row mb-4">
             <div class="col-12">
                 <div class="d-flex justify-content-center flex-wrap gap-3">
-                    <!-- Always available buttons -->
                     <button id="btnCapture" class="control-button btn btn-primary">
                         <i class="fas fa-camera me-2"></i>
                         Capture Image
@@ -569,7 +558,6 @@
                         Lihat Galeri Gambar
                     </button>
 
-                    <!-- Super Admin only buttons -->
                     <div id="superAdminControls" style="display: none;">
                         <button id="btnSensorOn" class="control-button btn btn-success">
                             <i class="fas fa-play me-2"></i>
@@ -585,35 +573,33 @@
                         </button>
                     </div>
 
-                    <!-- Restricted access indicators for regular admins -->
                     <div id="restrictedControls" style="display: none;">
                         <div class="restricted-control d-inline-block">
                             <button class="control-button btn btn-success" disabled>
                                 <i class="fas fa-play me-2"></i>
                                 Sensor ON
                             </button>
-                            <div class="access-denied-tooltip">Super Admin Only</div>
+                            <div class="access-denied-tooltip">Admin Only</div>
                         </div>
                         <div class="restricted-control d-inline-block">
                             <button class="control-button btn btn-secondary" disabled>
                                 <i class="fas fa-stop me-2"></i>
                                 Sensor OFF
                             </button>
-                            <div class="access-denied-tooltip">Super Admin Only</div>
+                            <div class="access-denied-tooltip">Admin Only</div>
                         </div>
                         <div class="restricted-control d-inline-block">
                             <button class="control-button btn btn-warning" disabled>
                                 <i class="fas fa-volume-up me-2"></i>
                                 Toggle Siren
                             </button>
-                            <div class="access-denied-tooltip">Super Admin Only</div>
+                            <div class="access-denied-tooltip">Admin Only</div>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
 
-        <!-- Activity Calendar -->
         <div class="row">
             <div class="col-12">
                 <div class="card border-0 shadow-sm">
@@ -625,14 +611,12 @@
                     </div>
                     <div class="card-body">
                         <div id="calendar">
-                            <!-- Calendar will be generated here -->
-                        </div>
+                            </div>
                     </div>
                 </div>
             </div>
         </div>
 
-        <!-- Debug Panel -->
         <div class="mt-4">
             <div class="card border-0 shadow-sm">
                 <div class="card-header bg-transparent border-0 pb-0">
@@ -650,13 +634,12 @@
         </div>
     </div>
 
-    <!-- Bootstrap JS -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
 
     <script>
         // Global state management
         let isInitialized = false;
-        let currentUserRole = 'admin'; // Will be updated on authentication
+        let currentUserRole = 'user'; // Will be updated on authentication
         let notificationPermission = 'default';
         let MQTT_CONFIG = {
             host: '',
@@ -982,7 +965,7 @@
             // Update current user role
             currentUserRole = userRole;
 
-            // For admin users, verify they still exist and are active
+            // For user accounts, verify they still exist and are active
             if (userRole === 'admin') {
                 const adminUsers = JSON.parse(localStorage.getItem('adminUsers') || '{}');
                 const currentUser = adminUsers[username];
@@ -997,7 +980,7 @@
 
             // Update UI with user information
             document.getElementById('currentUserName').textContent = fullName || username || 'User';
-            document.getElementById('userRole').textContent = userRole === 'superadmin' ? 'Super Admin' : 'Admin';
+            document.getElementById('userRole').textContent = userRole === 'superadmin' ? 'Admin' : 'User';
 
             // Configure role-based access
             configureRoleBasedAccess(userRole);
@@ -1012,19 +995,19 @@
             const adminPanelBtn = document.getElementById('adminPanelBtn');
 
             if (userRole === 'superadmin') {
-                // Super Admin: Show all controls and admin panel button
+                // Admin: Show all controls and admin panel button
                 superAdminControls.style.display = 'block';
                 restrictedControls.style.display = 'none';
                 adminPanelBtn.style.display = 'inline-block';
                 
-                debugLog('Super Admin access granted - Full system control enabled');
+                debugLog('Admin access granted - Full system control enabled');
             } else {
-                // Regular Admin: Hide sensitive controls, show restricted indicators
+                // Regular User: Hide sensitive controls, show restricted indicators
                 superAdminControls.style.display = 'none';
                 restrictedControls.style.display = 'block';
                 adminPanelBtn.style.display = 'none';
                 
-                debugLog('Regular Admin access - Restricted control mode enabled');
+                debugLog('Regular User access - Restricted control mode enabled');
             }
         }
 
@@ -1137,7 +1120,7 @@
                 }, 2000);
             });
 
-            // Super Admin only controls
+            // Admin only controls
             if (currentUserRole === 'superadmin') {
                 const btnSensorOn = document.getElementById('btnSensorOn');
                 const btnSensorOff = document.getElementById('btnSensorOff');
@@ -1146,14 +1129,14 @@
                 if (btnSensorOn) {
                     btnSensorOn.addEventListener('click', function() {
                         publishMessage(MQTT_CONFIG.topics.sensor, 'sensorOn', 2);
-                        debugLog('Sensor ON command sent (Super Admin)');
+                        debugLog('Sensor ON command sent (Admin)');
                     });
                 }
 
                 if (btnSensorOff) {
                     btnSensorOff.addEventListener('click', function() {
                         publishMessage(MQTT_CONFIG.topics.sensor, 'sensorOff', 2);
-                        debugLog('Sensor OFF command sent (Super Admin)');
+                        debugLog('Sensor OFF command sent (Admin)');
                     });
                 }
 
@@ -1163,12 +1146,12 @@
                         const newStatus = currentStatus === 'ACTIVE' ? '0' : '1';
                         
                         publishMessage(MQTT_CONFIG.topics.activate, newStatus, 2);
-                        debugLog(`Sirene toggle command sent: ${newStatus} (Super Admin)`);
+                        debugLog(`Sirene toggle command sent: ${newStatus} (Admin)`);
                     });
                 }
             } else {
-                // For regular admins, show access denied messages when they try to interact
-                debugLog('Sensor and sirene controls restricted for regular admin');
+                // For regular users, show access denied messages when they try to interact
+                debugLog('Sensor and sirene controls restricted for regular user');
             }
         }
 
@@ -1317,7 +1300,7 @@
             const userRole = sessionStorage.getItem('userRole');
             
             if (userRole !== 'superadmin') {
-                alert('Access denied. Super Admin privileges required.');
+                alert('Access denied. Admin privileges required.');
                 debugLog('Admin panel access denied - insufficient privileges');
                 return;
             }
@@ -1371,7 +1354,7 @@
         function debugLog(message) {
             const logEl = document.getElementById('debugLog');
             const timestamp = new Date().toLocaleTimeString();
-            const rolePrefix = currentUserRole === 'superadmin' ? '[SUPER]' : '[ADMIN]';
+            const rolePrefix = currentUserRole === 'superadmin' ? '[ADMIN]' : '[USER]';
             logEl.innerHTML += `[${timestamp}] ${rolePrefix} ${message}<br>`;
             logEl.scrollTop = logEl.scrollHeight;
             console.log(`${rolePrefix} ${message}`);
@@ -1838,7 +1821,7 @@
 
         // Security measures - prevent unauthorized access
         window.addEventListener('storage', function(e) {
-            // If admin users are updated and current user is admin, recheck authentication
+            // If adminUsers are updated and current user is a regular user, recheck authentication
             if (e.key === 'adminUsers') {
                 const userRole = sessionStorage.getItem('userRole');
                 if (userRole === 'admin') {
@@ -1847,7 +1830,7 @@
             }
         });
 
-        // Periodic authentication check for admin users
+        // Periodic authentication check for regular users
         setInterval(() => {
             const userRole = sessionStorage.getItem('userRole');
             if (userRole === 'admin') {
@@ -1856,10 +1839,10 @@
         }, 60000); // Check every minute
 
         // Access Control Functions
-        function checkSuperAdminAccess(action) {
+        function checkAdminAccess(action) {
             if (currentUserRole !== 'superadmin') {
-                debugLog(`Access denied: ${action} requires Super Admin privileges`);
-                showAlert('Access denied. Super Admin privileges required.', 'danger', 'fa-lock');
+                debugLog(`Access denied: ${action} requires Admin privileges`);
+                showAlert('Access denied. Admin privileges required.', 'danger', 'fa-lock');
                 return false;
             }
             return true;
@@ -1867,23 +1850,23 @@
 
         // Enhanced control functions with access control
         function activateSensor() {
-            if (!checkSuperAdminAccess('Sensor activation')) return;
+            if (!checkAdminAccess('Sensor activation')) return;
             publishMessage(MQTT_CONFIG.topics.sensor, 'sensorOn', 2);
-            debugLog('Sensor activation command sent by Super Admin');
+            debugLog('Sensor activation command sent by Admin');
         }
 
         function deactivateSensor() {
-            if (!checkSuperAdminAccess('Sensor deactivation')) return;
+            if (!checkAdminAccess('Sensor deactivation')) return;
             publishMessage(MQTT_CONFIG.topics.sensor, 'sensorOff', 2);
-            debugLog('Sensor deactivation command sent by Super Admin');
+            debugLog('Sensor deactivation command sent by Admin');
         }
 
         function toggleSiren() {
-            if (!checkSuperAdminAccess('Siren control')) return;
+            if (!checkAdminAccess('Siren control')) return;
             const currentStatus = document.getElementById('sireneText').textContent;
             const newStatus = currentStatus === 'ACTIVE' ? '0' : '1';
             publishMessage(MQTT_CONFIG.topics.activate, newStatus, 2);
-            debugLog(`Siren toggle command sent by Super Admin: ${newStatus}`);
+            debugLog(`Siren toggle command sent by Admin: ${newStatus}`);
         }
 
         // Role-based UI updates
@@ -1893,10 +1876,10 @@
             
             if (currentUserRole === 'superadmin') {
                 roleElement.style.background = 'linear-gradient(135deg, #dc2626, #b91c1c)';
-                roleElement.innerHTML = '<i class="fas fa-crown me-1"></i>Super Admin';
+                roleElement.innerHTML = '<i class="fas fa-crown me-1"></i>Admin';
             } else {
                 roleElement.style.background = 'var(--primary-color)';
-                roleElement.innerHTML = '<i class="fas fa-user me-1"></i>Admin';
+                roleElement.innerHTML = '<i class="fas fa-user me-1"></i>User';
             }
             
             debugLog(`UI updated for ${currentUserRole} role`);
@@ -1970,9 +1953,9 @@
             secureLogout();
         }
 
-        // Add keyboard shortcuts for Super Admin (optional feature)
+        // Add keyboard shortcuts for Admin (optional feature)
         document.addEventListener('keydown', function(e) {
-            // Only for Super Admin and when Ctrl+Alt is pressed
+            // Only for Admin and when Ctrl+Alt is pressed
             if (currentUserRole === 'superadmin' && e.ctrlKey && e.altKey) {
                 switch(e.key) {
                     case '1':
@@ -2019,7 +2002,7 @@
             if (currentUserRole === 'superadmin') {
                 helpMessage += `
                     <div class="mb-3">
-                        <h6 class="text-danger">Super Admin Features:</h6>
+                        <h6 class="text-danger">Admin Features:</h6>
                         <ul>
                             <li><i class="fas fa-play text-success"></i> Sensor Control - Enable/disable motion detection</li>
                             <li><i class="fas fa-volume-up text-warning"></i> Siren Control - Manual siren activation</li>
@@ -2034,7 +2017,7 @@
                 helpMessage += `
                     <div class="alert alert-info">
                         <i class="fas fa-info-circle me-2"></i>
-                        <strong>Note:</strong> Sensor and siren controls require Super Admin privileges.
+                        <strong>Note:</strong> Sensor and siren controls require Admin privileges.
                         Contact your administrator for elevated access.
                     </div>
                 `;
@@ -2045,7 +2028,7 @@
                         <h6>Desktop Notifications:</h6>
                         <p class="small">Enable desktop notifications to receive security alerts even when:</p>
                         <ul class="small">
-                            <li>You're browsing other websites</li>
+                            <li>You're Browse other websites</li>
                             <li>You're using other applications</li>
                             <li>Your browser tab is minimized</li>
                             <li>Your screen is locked (depending on system settings)</li>
@@ -2178,7 +2161,6 @@
 
     </script>
 
-<!-- Floating Toast Container -->
 <div id="toastContainer" style="position: fixed; top: 20px; right: 20px; z-index: 2000;"></div>
 
 </body>
