@@ -288,11 +288,11 @@
     
     <div class="login-form">
       <div class="user-type-selector">
-        <div class="user-type-option active" data-type="admin">
-          <i class="fas fa-user"></i> Admin
+        <div class="user-type-option active" data-type="user">
+          <i class="fas fa-user"></i> Petugas Lapangan
         </div>
-        <div class="user-type-option" data-type="superadmin">
-          <i class="fas fa-user-shield"></i> Super Admin
+        <div class="user-type-option" data-type="admin">
+          <i class="fas fa-user-shield"></i> Admin
         </div>
       </div>
 
@@ -332,34 +332,34 @@
   <script>
     // User management data (in production, this should be in a secure database)
     let userData = {
-      superadmin: {
-        username: 'superadmin',
-        password: 'super123admin',
-        role: 'superadmin',
-        fullName: 'Super Administrator',
+      admin: {
+        username: 'admin',
+        password: 'admin123',
+        role: 'admin',
+        fullName: 'Administrator',
         lastLogin: null
       },
-      admins: JSON.parse(localStorage.getItem('adminUsers') || '{}')
+      fieldUsers: JSON.parse(localStorage.getItem('fieldUsers') || '{}')
     };
 
-    // Initialize with default admin if none exists
-    if (Object.keys(userData.admins).length === 0) {
-      userData.admins = {
-        'admin1': {
-          username: 'admin1',
-          password: 'admin123',
-          role: 'admin',
-          fullName: 'Administrator',
-          createdBy: 'superadmin',
+    // Initialize with default field user if none exists
+    if (Object.keys(userData.fieldUsers).length === 0) {
+      userData.fieldUsers = {
+        'user1': {
+          username: 'user1',
+          password: 'user123',
+          role: 'user',
+          fullName: 'Petugas Lapangan 1',
+          createdBy: 'admin',
           createdAt: new Date().toISOString(),
           lastLogin: null,
           active: true
         }
       };
-      localStorage.setItem('adminUsers', JSON.stringify(userData.admins));
+      localStorage.setItem('fieldUsers', JSON.stringify(userData.fieldUsers));
     }
 
-    let currentUserType = 'admin';
+    let currentUserType = 'user';
     let loginAttempts = 0;
     const maxLoginAttempts = 5;
     const lockoutDuration = 15 * 60 * 1000; // 15 minutes
@@ -386,8 +386,8 @@
       const userRole = sessionStorage.getItem('userRole');
       
       if (isLoggedIn === 'true') {
-        if (userRole === 'superadmin') {
-          window.location.replace("admin-panel.html");
+        if (userRole === 'admin') {
+          window.location.replace("user-management.html");
         } else {
           window.location.replace("homepage.html");
         }
@@ -404,12 +404,12 @@
           clearError();
           
           // Update placeholder text
-          if (currentUserType === 'superadmin') {
-            usernameInput.placeholder = 'Super admin username';
-            passwordInput.placeholder = 'Super admin password';
-          } else {
+          if (currentUserType === 'admin') {
             usernameInput.placeholder = 'Admin username';
             passwordInput.placeholder = 'Admin password';
+          } else {
+            usernameInput.placeholder = 'Petugas lapangan username';
+            passwordInput.placeholder = 'Petugas lapangan password';
           }
         });
       });
@@ -489,8 +489,8 @@
           updateLastLogin(username, currentUserType);
 
           // Redirect based on role
-          if (loginResult.user.role === 'superadmin') {
-            window.location.replace("admin-panel.html");
+          if (loginResult.user.role === 'admin') {
+            window.location.replace("user-management.html");
           } else {
             window.location.replace("homepage.html");
           }
@@ -513,21 +513,21 @@
     }
 
     function authenticateUser(username, password, userType) {
-      if (userType === 'superadmin') {
-        if (username === userData.superadmin.username && password === userData.superadmin.password) {
+      if (userType === 'admin') {
+        if (username === userData.admin.username && password === userData.admin.password) {
           return {
             success: true,
-            user: userData.superadmin
+            user: userData.admin
           };
         }
       } else {
-        const admin = userData.admins[username];
-        if (admin && admin.password === password && admin.active) {
+        const fieldUser = userData.fieldUsers[username];
+        if (fieldUser && fieldUser.password === password && fieldUser.active) {
           return {
             success: true,
-            user: admin
+            user: fieldUser
           };
-        } else if (admin && !admin.active) {
+        } else if (fieldUser && !fieldUser.active) {
           return {
             success: false,
             message: 'Account has been deactivated'
@@ -544,11 +544,11 @@
     function updateLastLogin(username, userType) {
       const loginTime = new Date().toISOString();
       
-      if (userType === 'superadmin') {
-        userData.superadmin.lastLogin = loginTime;
+      if (userType === 'admin') {
+        userData.admin.lastLogin = loginTime;
       } else {
-        userData.admins[username].lastLogin = loginTime;
-        localStorage.setItem('adminUsers', JSON.stringify(userData.admins));
+        userData.fieldUsers[username].lastLogin = loginTime;
+        localStorage.setItem('fieldUsers', JSON.stringify(userData.fieldUsers));
       }
     }
 
@@ -576,10 +576,10 @@
     }
 
     function showForgotPasswordDialog() {
-      if (currentUserType === 'superadmin') {
-        alert('Super Admin password cannot be reset through this interface. Please contact system administrator.');
+      if (currentUserType === 'admin') {
+        alert('Admin password cannot be reset through this interface. Please contact system administrator.');
       } else {
-        alert('Please contact your Super Administrator to reset your password.');
+        alert('Please contact your Administrator to reset your password.');
       }
     }
 
